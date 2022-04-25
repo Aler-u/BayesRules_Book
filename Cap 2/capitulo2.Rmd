@@ -1,0 +1,417 @@
+---
+title: "Capitulo 2"
+subtitle: "Ejercicios"
+author: "Alejandro Ramos Usaj"
+date: "4/25/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(janitor)
+```
+
+# 2.17
+
+
+>Repeat Exercise 2.5 utilizing simulation to approximate the posterior probability that a randomly selected maple tree has mold. Specifically, simulate data for 10,000 trees and remember to set your random number seed. 
+
+
+Para referencia este es el ejercicio 2.5
+
+```
+A local arboretum contains a variety of tree species, including elms, maples, and others. Unfortunately, 18% of all trees in the arboretum are infected with mold. Among the infected trees, 15% are elms, 80% are maples, and 5% are other species. Among the uninfected trees, 20% are elms, 10% are maples, and 70% are other species. In monitoring the spread of mold, an arboretum employee randomly selects a tree to test.
+```
+
+No nos pide mas que el calculo de la posterior asi que obviamos el resto de las sub-consignas del ejercicio 2.5
+
+***
+
+Generamos un vector con los distintos tipos de arboles.
+
+```{r}
+arboles <- c('Elm', 'Maple', 'Other')
+```
+
+Ahora segun dice el ejercicio generamos 10 mil arboles. De esos 10 mil arboles tenemos que respetar en principio las probabilidades generales de cada especie. La logica para calcular esto es sumar la proporcion de una especie para los infectados y para los no infectados. Por ejemplo si el total de arboles fuera 10 mil entonces lo que tenemos que hacer es primero ver cuantos arboles tenemos en total infectados y cuantos sanos.
+
+$P(infectado) = 10^4 \times.18 =$ `r 10000 * 0.18`
+$P(sano) = 1 - P(infectado) =$ `r 10000 * (1 - 0.18)`
+
+De esta manera sabemos que si el 15% de los arboles infectados son elms 
+
+$P(elm|infectado)=0.15 \times P(infectado)=0.15*1800=$`r 0.15 * 10000 * 0.18`
+
+Y asi con cada especie pero no queremos trabajar con numeros fijos de arboles sino con una simulacion por lo que el calculo seria
+
+$P(elm|infectado)=0.15 \times P(infectado)=0.15 \times. 18=$`r 0.15 * 0.18`
+
+Repetimos el calculo para los arboles de tipo elm que son sanos y tenemos la probabilidad general de tener un arbol elm, asi para cada especie.
+
+```{r}
+probs <- c(
+  (0.18 * .15) + (1-0.18) * 0.2, #Elms
+  (0.18 * 0.8) + (1-0.18) * 0.1, #Maple
+  (0.18 * 0.05) + (1-0.18) * 0.7 #Other
+)
+probs
+```
+
+De esta manera podemos generar una simulacion de 10 mil arboles que sigan esas probabilidades
+
+```{r}
+sim_res <- sample(
+  arboles,
+  10e03,
+  replace = T,
+  prob = probs
+)
+table(sim_res)/10e03
+```
+Las proporciones de una simulacion vemos que son bastante cercanas a las que definimos numericamente asi que vamos por buen camino. 
+Ahora tenemos que considerar si estan infectados o no. Si simplemente generaramos otra muestra de 10 mil valores respetando las proporciones de 0.18 y `r 1 - 0.18` tendriamos resultados engañosos porque la condicion de infectado o sano se repartiria de manera independiente entre las distintas especies y eso no es lo que nos dicen los datos del ejercicios. 
+
+Podemos comprobarlo de manera sencilla. Vamos a generar otros 10 mil valores de sano o infectado y vamos a sumar eso a los datos que ya simulamos para generar un dataframe.
+
+```{r}
+wrong_sim <- data.frame(
+    especie = sim_res,
+    status = sample(c('infected', 'sano'), 10e03, replace = T, prob = c(0.18, 1 - 0.18))
+  )
+head(
+wrong_sim
+  )
+```
+
+Ahora veamos si las probabilidades condicen con lo que nos dice el ejercicio. 
+
+```{r}
+table(wrong_sim)*0.0001
+```
+Ya vimos que los elms infectados representan un `r 0.15 * 0.18` del total mientras que los elms no infectados representan un `r 0.15 * (1-0.18)` del total. En el caso de los maple deberia darnos un `r 0.8 * 0.18` de infectados y un `r 0.1 * (1-0.18)` de arboles sanos. Estamos muy lejos de esos numeros
+Vamos a tomar otro abordaje entonces. Vamos a generar un dataframe y usar la funcion `slice_sample` para armar la simulacion. El dataframe va a tener una columna para la especie de los arboles, una columna para el status y una columna para indicar la probabilidad de que esa combinacion ocurra. Deberia haber entonces 6 filas (3 especies por 2 status) y para generar las probabilidades deberiamos multiplicar la probabilidad condicional en cada caso.
+
+```{r}
+set.seed(123)
+df_sim <- tibble(
+  especie = rep(arboles, each = 2),
+  status = rep(
+    c('infected','sano'), 3
+  ),
+  prob_status = rep(
+    c(0.18, 1 - 0.18), 3
+  ),
+  prob_especie = c(0.15, 0.2, 0.8, 0.1, 0.05, 0.7)
+) %>%
+  mutate(prob_cond = prob_status * prob_especie)
+df_sim
+```
+
+Podemos comprobar que hayamos hecho todo bien sumando la columna `prob_cond` y vemos que nos da `r sum(df_sim$prob_cond)` como es esperable. 
+
+Ahora si podemos utilizar la funcion slice_sample utilizando la columna `prob_cond` para asignar los pesos y generamos una muestra de 10 mil arboles.
+
+```{r}
+simulacion_final <- df_sim %>% slice_sample(weight_by = prob_cond, n = 10e03, replace = TRUE) %>%
+  select(especie,status)
+slice_sample(simulacion_final, n = 5)
+```
+
+Ahora con estos datos podemos ver cual es la probabilidad posterior de que un arbol de tipo elm elegido aleatoriamente este infectado. La formalizacion de esto seria
+
+$P(infectado|elm) = P(elm) \times P(infectado \cap elm)$
+
+Para calcularlo en R lo hacemos de la siguiente manera
+
+```{r}
+(sum(simulacion_final$especie == 'Elm')/10e03) * #P(elm)
+(sum(simulacion_final$especie == 'Elm' & simulacion_final$status == 'infected')/1e03) #P(infectado y elm)
+```
+# 2.18
+
+>  Repeat Exercise 2.13 utilizing simulation to approximate the posterior model of π corresponding to Fatima’s survey data. Specifically, simulate data for 10,000 people and remember to set your random number seed. 
+
+El ejercicio 2.13 nos dice
+
+```
+ Lactose intolerance is an inability to digest milk, often resulting in an upset stomach. Fatima wants to learn more about the proportion of adults who are lactose intolerant, pi.
+```
+
+Llama entonces $\pi$ a la proporcion de adultos que son intolerantes a la lactosa y nos da el modelo del prior para $\pi$ que graficamos a continuacion
+
+```{r}
+plot(
+  x = c(0.4, 0.5, 0.6, 0.7),
+  y = c(0.1, 0.2, 0.44, 0.26),
+  ylab = 'Prior', xlab = 'Proporcion'
+)
+
+```
+
+Lo que el ejercicio nos pregunta es cual es el modelo de la posterior de $\pi$ dado los datos que obtiene Fatima en su encuesta (los datos de la encuesta a continuacion)
+
+```
+Fatima surveys a random sample of 80 adults and 47 are lactose intolerant.
+```
+
+Recolectamos la informacion del prior y de los datos
+
+```{r}
+pi <- c(0.4, 0.5, 0.6, 0.7)
+prior <- c(0.1, 0.2, 0.44, 0.26)
+datos <- 47/80
+```
+
+Con esto podemos arrancar por simular 10 mil valores dada las probabilidades de las distintas proporciones (el prior). 
+
+```{r}
+prior_people_prop <- sample(
+  pi, 
+  size = 10000,
+  prob = prior,
+  replace = TRUE
+)
+
+prior_people_sim <- sapply(prior_people_prop, 
+       function(x) rbinom(1, 80, prob = x))
+
+prior_df <- data.frame(
+  pi = prior_people_prop,
+  sim = prior_people_sim
+)
+head(prior_df)
+```
+
+En cada caso simulamos encuestar 80 personas con una proporcion $\pi$ de personas intolerantes a la lactosa. 
+
+Ahora entonces podemos graficar lo que implica el prior si tomaramos una encuesta de 80 personas elegidas al azar.
+
+```{r}
+ggplot(data = prior_df, 
+       aes(x = sim)) +
+  geom_histogram() +
+  geom_vline(aes(xintercept = 47), color = 'red', linetype = 'dashed') + 
+  facet_wrap(~ pi, scales = 'free_y')
+```
+
+El caso donde es mas probable encontrar 47 personas intolerantes a la lactosa es con un prior de 0.6
+Dado esto podemos ver cuantos casos de cada proporcion $\pi$ hubo donde se encontraron 47 personas intolerantes a la lactosa. Eso nos va a dar la posterior. 
+
+
+```{r}
+prior_df %>% filter(sim == 47) %>%
+  ggplot(aes(x = pi)) +
+  geom_bar()
+```
+
+¿Por que esto nos daria la posterior?
+
+En primer lugar tenemos que en el data frame `prior_df` la cantidad de veces que aparece cada valor $\pi$ es proporcional al prior que tiene cada uno de estos valores. Podemos verlo claramente si comparamos la proporcion con el prior.
+
+```{r}
+data.frame(
+  prior = prior,
+  proporcion_simulada = prior_df %>% count(pi) %>% .$n/nrow(prior_df)
+)
+```
+
+Los valores son muy similares a los esperados, de esta manera ya contemplamos las probabilidades de cada prior. Al haber simulado cada encuesta con estas proporciones, al chequear en cuantos casos se cumplio que se encontraran 47 personas con intolerancia a la lactosa la cantidad de casos que se encuentren va a estar indefectiblemente afectada por estas proporciones. Por lo tanto aun si el primer prior que corresponde a un $\pi = 0.4$ fuera el que tuviera mas casos, va a estar limitado en tanto unicamente hay alrededor de un 10% de las simulaciones con ese pi entonces esto no podria haber sucedido en mas de un 10% de los casos o, en nuestro ejemplo, no podriamos haber encontrado mas de `r 0.0969 * 10000` casos en total para ese prior. 
+
+# 2.19
+
+>  Repeat Exercise 2.15 utilizing simulation to approximate the posterior model of π. 
+
+La consigna del ejercicio 2.15 dice
+
+```
+Cuckoo birds are brood parasites, meaning that they lay their eggs in the nests of other birds (hosts), so that the host birds will raise the cuckoo bird hatchlings. Lisa is an ornithologist studying the success rate, pi, of cuckoo bird hatchlings that survive at least one week. She is taking over the project from a previous researcher who speculated in their notes the following prior model
+``` 
+
+```{r}
+pi <- c(0.6, 0.65, 0.7, 0.75)
+prior <- c(0.3, 0.4, 0.2, 0.1)
+
+knitr::kable(
+ data.frame(
+  "pi" = pi,
+  "f(pi)" = prior
+  ),
+ col.names = c("$\\pi$", "$f(\\pi)$"),
+ escape = FALSE
+)
+```
+
+
+Dado este modelo se solicita que calculemos la posterior a partir de los siguientes datos. 
+
+```
+Lisa collects some data. Among the 15 hatchlings she studied, 10 survived for at least one week. What is the posterior model for π?
+```
+
+Dados estos datos generamos 10 mil muestras del parametro $\pi$ siguiendo el modelo del prior y para cada valor de $\pi$ calculamos la cantidad de pajaros que sobrevivieron dado por un modelo binomial con probabilidad $\pi$
+
+```{r}
+set.seed(345)
+cuckoo_sim <- tibble(
+  parametro = pi,
+  prior_prob = prior
+) %>%
+  slice_sample(n = 10000, weight_by = prior_prob, replace = TRUE) %>%
+  mutate(y = rbinom(10000, 15, prob = parametro))
+
+head(cuckoo_sim)
+```
+
+Ahora con estos datos graficamos la distribucion de la posterior 
+
+```{r}
+cuckoo_sim %>% filter(y == 10) %>%
+  ggplot(aes(x = parametro)) +
+  geom_bar()
+```
+
+Vemos que lo mas probable es que el valor de $\pi$ sea 0.65 seguido por $\pi=0.6$ y $\pi=0.7$. Como no tenemos mucha informacion (hay pocos datos) la diferencia en la posterior entre los distintos valores del parametro no es muy grande. 
+
+# 2.20
+
+>  Whether you like it or not, cats have taken over the internet. Joining the craze, Zainab has written an algorithm to detect cat images. It correctly identifies 80% of cat images as cats, but falsely identifies 50% of non-cat images as cats. Zainab tests her algorithm with a new set of images, 8% of which are cats. What’s the probability that an image is actually a cat if the algorithm identifies it as a cat? Answer this question by simulating data for 10,000 images. 
+
+Primero vamos a generar un dataset de 10 mil imagenes, de esas imagenes vamos a hacer que unicamente el 8% sean gatos tal como dice la consigna.
+
+```{r}
+imagenes <- rep(
+  c(T, F),
+  c(10e03 * 0.08,
+    10e03 * (1-0.08)
+    )
+)
+p_gato <- 0.8
+p_no_gato <- 0.5
+```
+
+Para implementar el algoritmo vamos a ver cada imagen y si se trata de la imagen de un gato hay un 80% de chances de que se la identifique como tal. Si no se trata de una imagen de un gato la probabilidad es del 50% de identificarla como un gato.
+
+```{r}
+set.seed(789)
+algorithm_simulation <- sapply(imagenes, 
+      function(x){
+        if(x == T){
+          sample(c(T,F), 1, prob = c(p_gato, 1 - p_gato))
+        }
+        else{
+          sample(c(T,F), 1, prob = c(p_no_gato, 1 - p_no_gato))
+        }
+      }
+       )
+```
+
+Antes que nada chequeamos que los resultados esten dentro de lo esperable. Para eso deberiamos ver que para las imagenes de gatos el algoritmo las identifica correctamente un 80% de las veces. Es decir que la proporcion de casos donde la etiqueta de gato es `TRUE` y la etiqueta del algoritmo es `TRUE`, siendo que que `TRUE` significa que es un gato, deberia dar alrededor de 80%.
+
+```{r}
+sum(
+  imagenes == TRUE & #La imagen realmente es un gato
+algorithm_simulation == TRUE #El algoritmo la clasifica como gato
+)/sum(imagenes == TRUE)
+```
+El resultado esta muy cerca del valor esperado. Podemos repetir el mismo procedimiento para ver como le fue con las imagenes que no eran de gatos.
+
+```{r}
+sum(
+  imagenes == FALSE & #La imagen no es en realidad de un gato
+algorithm_simulation == TRUE #El algoritmo la clasifica como gato
+)/sum(imagenes == FALSE)
+```
+Los falsos positivos tambien estan cerca del valor esperado asi que podemos quedarnos tranquilos que los resultados de la simulacion estan dentro de lo esperado.
+
+Procedemos ahora entonces con la pregunta del ejercicio. Lo que se nos pregunta es la probabilidad de que la imagen realmente sea la de un gato dado que el algoritmo dijo que era la de un gato lo cual formalizamos como $P(imagen = gato| algoritmo = gato)$.
+
+Esto seria equivalente a preguntar, del total de imagenes que el algoritmo dijo que eran de gatos (`r sum(algorithm_simulation == TRUE)` imagenes) ¿Cuantas eran realmente de gatos? 
+
+```{r}
+sum(algorithm_simulation == TRUE & imagenes == TRUE)/sum(algorithm_simulation == TRUE)
+```
+Vemos que entonces unicamente el 11% de las imagenes que el algoritmo dijo que eran gatos, eran realmente gatos. El otro `r 1 - sum(algorithm_simulation == TRUE & imagenes == TRUE)/sum(algorithm_simulation == TRUE)` eran imagenes que no eran de gatos pero el algoritmo las clasifico como tal.
+
+# 2.21
+
+>  A medical test is designed to detect a disease that about 3% of the population has. For 93% of those who have the disease, the test yields a positive result. In addition, the test falsely yields a positive result for 7% of those without the disease. What is the probability that a person has the disease given that they have tested positive? Answer this question by simulating data for 10,000 people. 
+
+Para iniciar generamos una muestra de 10 mil personas. De esas 10 mil personas hay una probabilidad 0.03 de tener la enfermedad y 0.97 de no tenerla. 
+
+```{r}
+set.seed(1234)
+enfermedad_sample <- sample(
+  c('enfermo', 'sano'),
+  10000,
+  replace = TRUE,
+  prob = c(0.03, 0.97)
+)
+```
+
+Para corroborar que hicimos todo bien chequeamos las prevalencias de la enfermedad en nuestra muestra.
+
+```{r}
+table(enfermedad_sample)/length(enfermedad_sample)
+```
+Las prevalencias son practicamente iguales a las esperadas asi que podemos avanzar tranquilos. 
+
+Proximamente les aplicamos a todas las personas el test para detectar la enfermedad. Sabemos que de aquellos que la tienen, el 93% va a tener un resultado positivo que seria equivalente a decir que $P(positivo|enfermo) = .93$ y tambien sabemos que para quienes no lo tienen vamos a ver un positivo en el 7% de los casos $P(positivo|sano) = 0.07$. 
+
+Lo que queremos saber es la probabilidad de que alguien tenga la enfermedad dado que haya tenido un resultado positivo es decir $P(enfermo|positivo)$. 
+
+Procedemos a simular la aplicacion del test a nuestra muestra de 10 mil personas siguiendo las probabilidades definidas anteriormente.
+
+```{r}
+positivo_enfermo <- 0.93
+positivo_sano <- 0.07
+negativo_enfermo <- 0.07
+negativo_sano <- 0.93
+
+resultado <- sapply(
+  enfermedad_sample,
+  function(x){
+    if(x == 'enfermo'){
+      sample(
+        c(T,F),
+        1,
+        prob = c(positivo_enfermo, negativo_enfermo)
+      )
+    }
+    else{
+      sample(
+        c(T,F),
+        1,
+        prob = c(positivo_sano, negativo_sano)
+      )
+    }
+  }
+)
+
+enfermedad_df <- data.frame(
+  'resultado' = resultado,
+  'estado' = enfermedad_sample
+)
+
+head(enfermedad_df)
+```
+
+Antes de proceder a ver la posterior vemos que los resultados para las probabilidades que conocemos den como esperamos, arrancando con $P(positivo|enfermo)$
+
+```{r}
+sum(enfermedad_df$estado == 'enfermo' & enfermedad_df$resultado == T)/sum(enfermedad_df$estado == 'enfermo')
+```
+Como esperabamos tenemos una probabilidad del 93% de obtener un positivo para aquellos que estaban enfermos.
+
+Ahora si avanzamos para calcular la posterior, es decir la probabilidad de que si nos dieron un resultado positivo estemos enfermos. Para eso calculamos cuantos de los que tuvieron un positivo estan realmente enfermos. 
+
+```{r}
+sum(
+  enfermedad_df$resultado == T & #Cantidad de personas con un resultado positivo
+    enfermedad_df$estado == 'enfermo' #Cantidad de personas enferma
+    )/sum(enfermedad_df$resultado == T) #Cantidad de personas con un resultado positivo y enfermas
+```
+Esto significa que de entre todos aquellos que obtuvieron un resultado positivo, unicamente un 28% esta realmente enfermo. 
+
+
+
