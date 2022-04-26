@@ -125,8 +125,8 @@ $P(infectado|elm) = P(elm) \times P(infectado \cap elm)$
 Para calcularlo en R lo hacemos de la siguiente manera
 
 ```{r}
-(sum(simulacion_final$especie == 'Elm')/10e03) * #P(elm)
-(sum(simulacion_final$especie == 'Elm' & simulacion_final$status == 'infected')/1e03) #P(infectado y elm)
+(sum(simulacion_final$especie == 'Maple')/10e03) * #P(elm)
+(sum(simulacion_final$especie == 'Maple' & simulacion_final$status == 'infected')/1e03) #P(infectado y elm)
 ```
 # 2.18
 
@@ -411,6 +411,7 @@ sum(
     enfermedad_df$estado == 'enfermo' #Cantidad de personas enferma
     )/sum(enfermedad_df$resultado == T) #Cantidad de personas con un resultado positivo y enfermas
 ```
+
 Esto significa que de entre todos aquellos que obtuvieron un resultado positivo, unicamente un 28% esta realmente enfermo. 
 
 

@@ -391,7 +391,7 @@ probs</code></pre>
 table(sim_res)/10e03</code></pre>
 <pre><code>## sim_res
 ##    Elm  Maple  Other 
-## 0.1900 0.2276 0.5824</code></pre>
+## 0.1892 0.2318 0.5790</code></pre>
 <p>Las proporciones de una simulacion vemos que son bastante cercanas a las que definimos numericamente asi que vamos por buen camino. Ahora tenemos que considerar si estan infectados o no. Si simplemente generaramos otra muestra de 10 mil valores respetando las proporciones de 0.18 y 0.82 tendriamos resultados engañosos porque la condicion de infectado o sano se repartiria de manera independiente entre las distintas especies y eso no es lo que nos dicen los datos del ejercicios.</p>
 <p>Podemos comprobarlo de manera sencilla. Vamos a generar otros 10 mil valores de sano o infectado y vamos a sumar eso a los datos que ya simulamos para generar un dataframe.</p>
 <pre class="r"><code>wrong_sim &lt;- data.frame(
@@ -403,18 +403,18 @@ wrong_sim
   )</code></pre>
 <pre><code>##   especie   status
 ## 1   Other     sano
-## 2   Other     sano
-## 3   Other     sano
+## 2   Maple infected
+## 3   Maple     sano
 ## 4   Other     sano
-## 5   Maple infected
+## 5   Other infected
 ## 6   Other infected</code></pre>
 <p>Ahora veamos si las probabilidades condicen con lo que nos dice el ejercicio.</p>
 <pre class="r"><code>table(wrong_sim)*0.0001</code></pre>
 <pre><code>##        status
 ## especie infected   sano
-##   Elm     0.0326 0.1574
-##   Maple   0.0431 0.1845
-##   Other   0.1037 0.4787</code></pre>
+##   Elm     0.0331 0.1561
+##   Maple   0.0439 0.1879
+##   Other   0.1080 0.4710</code></pre>
 <p>Ya vimos que los elms infectados representan un 0.027 del total mientras que los elms no infectados representan un 0.123 del total. En el caso de los maple deberia darnos un 0.144 de infectados y un 0.082 de arboles sanos. Estamos muy lejos de esos numeros Vamos a tomar otro abordaje entonces. Vamos a generar un dataframe y usar la funcion <code>slice_sample</code> para armar la simulacion. El dataframe va a tener una columna para la especie de los arboles, una columna para el status y una columna para indicar la probabilidad de que esa combinacion ocurra. Deberia haber entonces 6 filas (3 especies por 2 status) y para generar las probabilidades deberiamos multiplicar la probabilidad condicional en cada caso.</p>
 <pre class="r"><code>set.seed(123)
 df_sim &lt;- tibble(
@@ -454,9 +454,9 @@ slice_sample(simulacion_final, n = 5)</code></pre>
 <p>Ahora con estos datos podemos ver cual es la probabilidad posterior de que un arbol de tipo elm elegido aleatoriamente este infectado. La formalizacion de esto seria</p>
 <p><span class="math inline">\(P(infectado|elm) = P(elm) \times P(infectado \cap elm)\)</span></p>
 <p>Para calcularlo en R lo hacemos de la siguiente manera</p>
-<pre class="r"><code>(sum(simulacion_final$especie == &#39;Elm&#39;)/10e03) * #P(elm)
-(sum(simulacion_final$especie == &#39;Elm&#39; &amp; simulacion_final$status == &#39;infected&#39;)/1e03) #P(infectado y elm)</code></pre>
-<pre><code>## [1] 0.0441324</code></pre>
+<pre class="r"><code>(sum(simulacion_final$especie == &#39;Maple&#39;)/10e03) * #P(elm)
+(sum(simulacion_final$especie == &#39;Maple&#39; &amp; simulacion_final$status == &#39;infected&#39;)/1e03) #P(infectado y elm)</code></pre>
+<pre><code>## [1] 0.3221428</code></pre>
 </div>
 <div id="section-1" class="section level1">
 <h1>2.18</h1>
@@ -572,6 +572,150 @@ knitr::kable(
 </tr>
 </tbody>
 </table>
+<p>Dado este modelo se solicita que calculemos la posterior a partir de los siguientes datos.</p>
+<pre><code>Lisa collects some data. Among the 15 hatchlings she studied, 10 survived for at least one week. What is the posterior model for π?</code></pre>
+<p>Dados estos datos generamos 10 mil muestras del parametro <span class="math inline">\(\pi\)</span> siguiendo el modelo del prior y para cada valor de <span class="math inline">\(\pi\)</span> calculamos la cantidad de pajaros que sobrevivieron dado por un modelo binomial con probabilidad <span class="math inline">\(\pi\)</span></p>
+<pre class="r"><code>set.seed(345)
+cuckoo_sim &lt;- tibble(
+  parametro = pi,
+  prior_prob = prior
+) %&gt;%
+  slice_sample(n = 10000, weight_by = prior_prob, replace = TRUE) %&gt;%
+  mutate(y = rbinom(10000, 15, prob = parametro))
+
+head(cuckoo_sim)</code></pre>
+<pre><code>## # A tibble: 6 x 3
+##   parametro prior_prob     y
+##       &lt;dbl&gt;      &lt;dbl&gt; &lt;int&gt;
+## 1      0.65        0.4     9
+## 2      0.65        0.4     9
+## 3      0.65        0.4     9
+## 4      0.6         0.3    10
+## 5      0.6         0.3     8
+## 6      0.7         0.2    10</code></pre>
+<p>Ahora con estos datos graficamos la distribucion de la posterior</p>
+<pre class="r"><code>cuckoo_sim %&gt;% filter(y == 10) %&gt;%
+  ggplot(aes(x = parametro)) +
+  geom_bar()</code></pre>
+<p><img src="data:image/png;base64,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" width="672" /></p>
+<p>Vemos que lo mas probable es que el valor de <span class="math inline">\(\pi\)</span> sea 0.65 seguido por <span class="math inline">\(\pi=0.6\)</span> y <span class="math inline">\(\pi=0.7\)</span>. Como no tenemos mucha informacion (hay pocos datos) la diferencia en la posterior entre los distintos valores del parametro no es muy grande.</p>
+</div>
+<div id="section-3" class="section level1">
+<h1>2.20</h1>
+<blockquote>
+<p>Whether you like it or not, cats have taken over the internet. Joining the craze, Zainab has written an algorithm to detect cat images. It correctly identifies 80% of cat images as cats, but falsely identifies 50% of non-cat images as cats. Zainab tests her algorithm with a new set of images, 8% of which are cats. What’s the probability that an image is actually a cat if the algorithm identifies it as a cat? Answer this question by simulating data for 10,000 images.</p>
+</blockquote>
+<p>Primero vamos a generar un dataset de 10 mil imagenes, de esas imagenes vamos a hacer que unicamente el 8% sean gatos tal como dice la consigna.</p>
+<pre class="r"><code>imagenes &lt;- rep(
+  c(T, F),
+  c(10e03 * 0.08,
+    10e03 * (1-0.08)
+    )
+)
+p_gato &lt;- 0.8
+p_no_gato &lt;- 0.5</code></pre>
+<p>Para implementar el algoritmo vamos a ver cada imagen y si se trata de la imagen de un gato hay un 80% de chances de que se la identifique como tal. Si no se trata de una imagen de un gato la probabilidad es del 50% de identificarla como un gato.</p>
+<pre class="r"><code>set.seed(789)
+algorithm_simulation &lt;- sapply(imagenes, 
+      function(x){
+        if(x == T){
+          sample(c(T,F), 1, prob = c(p_gato, 1 - p_gato))
+        }
+        else{
+          sample(c(T,F), 1, prob = c(p_no_gato, 1 - p_no_gato))
+        }
+      }
+       )</code></pre>
+<p>Antes que nada chequeamos que los resultados esten dentro de lo esperable. Para eso deberiamos ver que para las imagenes de gatos el algoritmo las identifica correctamente un 80% de las veces. Es decir que la proporcion de casos donde la etiqueta de gato es <code>TRUE</code> y la etiqueta del algoritmo es <code>TRUE</code>, siendo que que <code>TRUE</code> significa que es un gato, deberia dar alrededor de 80%.</p>
+<pre class="r"><code>sum(
+  imagenes == TRUE &amp; #La imagen realmente es un gato
+algorithm_simulation == TRUE #El algoritmo la clasifica como gato
+)/sum(imagenes == TRUE)</code></pre>
+<pre><code>## [1] 0.79</code></pre>
+<p>El resultado esta muy cerca del valor esperado. Podemos repetir el mismo procedimiento para ver como le fue con las imagenes que no eran de gatos.</p>
+<pre class="r"><code>sum(
+  imagenes == FALSE &amp; #La imagen no es en realidad de un gato
+algorithm_simulation == TRUE #El algoritmo la clasifica como gato
+)/sum(imagenes == FALSE)</code></pre>
+<pre><code>## [1] 0.5052174</code></pre>
+<p>Los falsos positivos tambien estan cerca del valor esperado asi que podemos quedarnos tranquilos que los resultados de la simulacion estan dentro de lo esperado.</p>
+<p>Procedemos ahora entonces con la pregunta del ejercicio. Lo que se nos pregunta es la probabilidad de que la imagen realmente sea la de un gato dado que el algoritmo dijo que era la de un gato lo cual formalizamos como <span class="math inline">\(P(imagen = gato| algoritmo = gato)\)</span>.</p>
+<p>Esto seria equivalente a preguntar, del total de imagenes que el algoritmo dijo que eran de gatos (5280 imagenes) ¿Cuantas eran realmente de gatos?</p>
+<pre class="r"><code>sum(algorithm_simulation == TRUE &amp; imagenes == TRUE)/sum(algorithm_simulation == TRUE)</code></pre>
+<pre><code>## [1] 0.119697</code></pre>
+<p>Vemos que entonces unicamente el 11% de las imagenes que el algoritmo dijo que eran gatos, eran realmente gatos. El otro 0.880303 eran imagenes que no eran de gatos pero el algoritmo las clasifico como tal.</p>
+</div>
+<div id="section-4" class="section level1">
+<h1>2.21</h1>
+<blockquote>
+<p>A medical test is designed to detect a disease that about 3% of the population has. For 93% of those who have the disease, the test yields a positive result. In addition, the test falsely yields a positive result for 7% of those without the disease. What is the probability that a person has the disease given that they have tested positive? Answer this question by simulating data for 10,000 people.</p>
+</blockquote>
+<p>Para iniciar generamos una muestra de 10 mil personas. De esas 10 mil personas hay una probabilidad 0.03 de tener la enfermedad y 0.97 de no tenerla.</p>
+<pre class="r"><code>set.seed(1234)
+enfermedad_sample &lt;- sample(
+  c(&#39;enfermo&#39;, &#39;sano&#39;),
+  10000,
+  replace = TRUE,
+  prob = c(0.03, 0.97)
+)</code></pre>
+<p>Para corroborar que hicimos todo bien chequeamos las prevalencias de la enfermedad en nuestra muestra.</p>
+<pre class="r"><code>table(enfermedad_sample)/length(enfermedad_sample)</code></pre>
+<pre><code>## enfermedad_sample
+## enfermo    sano 
+##  0.0296  0.9704</code></pre>
+<p>Las prevalencias son practicamente iguales a las esperadas asi que podemos avanzar tranquilos.</p>
+<p>Proximamente les aplicamos a todas las personas el test para detectar la enfermedad. Sabemos que de aquellos que la tienen, el 93% va a tener un resultado positivo que seria equivalente a decir que <span class="math inline">\(P(positivo|enfermo) = .93\)</span> y tambien sabemos que para quienes no lo tienen vamos a ver un positivo en el 7% de los casos <span class="math inline">\(P(positivo|sano) = 0.07\)</span>.</p>
+<p>Lo que queremos saber es la probabilidad de que alguien tenga la enfermedad dado que haya tenido un resultado positivo es decir <span class="math inline">\(P(enfermo|positivo)\)</span>.</p>
+<p>Procedemos a simular la aplicacion del test a nuestra muestra de 10 mil personas siguiendo las probabilidades definidas anteriormente.</p>
+<pre class="r"><code>positivo_enfermo &lt;- 0.93
+positivo_sano &lt;- 0.07
+negativo_enfermo &lt;- 0.07
+negativo_sano &lt;- 0.93
+
+resultado &lt;- sapply(
+  enfermedad_sample,
+  function(x){
+    if(x == &#39;enfermo&#39;){
+      sample(
+        c(T,F),
+        1,
+        prob = c(positivo_enfermo, negativo_enfermo)
+      )
+    }
+    else{
+      sample(
+        c(T,F),
+        1,
+        prob = c(positivo_sano, negativo_sano)
+      )
+    }
+  }
+)
+
+enfermedad_df &lt;- data.frame(
+  &#39;resultado&#39; = resultado,
+  &#39;estado&#39; = enfermedad_sample
+)
+
+head(enfermedad_df)</code></pre>
+<pre><code>##   resultado estado
+## 1     FALSE   sano
+## 2     FALSE   sano
+## 3     FALSE   sano
+## 4      TRUE   sano
+## 5     FALSE   sano
+## 6     FALSE   sano</code></pre>
+<p>Antes de proceder a ver la posterior vemos que los resultados para las probabilidades que conocemos den como esperamos, arrancando con <span class="math inline">\(P(positivo|enfermo)\)</span></p>
+<pre class="r"><code>sum(enfermedad_df$estado == &#39;enfermo&#39; &amp; enfermedad_df$resultado == T)/sum(enfermedad_df$estado == &#39;enfermo&#39;)</code></pre>
+<pre><code>## [1] 0.9459459</code></pre>
+<p>Como esperabamos tenemos una probabilidad del 93% de obtener un positivo para aquellos que estaban enfermos.</p>
+<p>Ahora si avanzamos para calcular la posterior, es decir la probabilidad de que si nos dieron un resultado positivo estemos enfermos. Para eso calculamos cuantos de los que tuvieron un positivo estan realmente enfermos.</p>
+<pre class="r"><code>sum(
+  enfermedad_df$resultado == T &amp; #Cantidad de personas con un resultado positivo
+    enfermedad_df$estado == &#39;enfermo&#39; #Cantidad de personas enferma
+    )/sum(enfermedad_df$resultado == T) #Cantidad de personas con un resultado positivo y enfermas</code></pre>
+<pre><code>## [1] 0.2966102</code></pre>
+<p>Esto significa que de entre todos aquellos que obtuvieron un resultado positivo, unicamente un 28% esta realmente enfermo.</p>
 </div>
 
 
