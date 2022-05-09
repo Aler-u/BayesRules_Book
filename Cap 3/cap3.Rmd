@@ -1,0 +1,126 @@
+---
+title: "Chapter 3"
+subtitle: "Exercises"
+author: "Alejandro Ramos Usaj"
+date: "5/5/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(bayesrules)
+library(tidyverse)
+```
+
+# Exercise 3.1
+
+_(Tune your Beta prior: Take I)_ In each situation below, tune a Beta(α,β) model that accurately reflects the given prior information. In many cases, there’s no single “right” answer, but rather multiple “reasonable” answers. 
+
+## a)
+
+Your friend applied to a job and tells you: “I think I have a 40% chance of getting the job, but I’m pretty unsure.” When pressed further, they put their chances between 20% and 60%.
+
+```{r}
+
+```
+
+
+# Exercise 3.3
+
+_(It’s OK to admit you don’t know)_ You want to specify a Beta prior for a situation in which you have no idea about some parameter $\pi$. You think $\pi$ is equally likely to be anywhere between 0 and 1. Specify and plot the appropriate Beta prior model.
+
+## a.
+
+Specify and plot the appropriate Beta prior model.
+
+```{r}
+plot_beta(1, 1)
+```
+
+## b.
+
+What is the mean of the Beta prior that you specified? Explain why that does or does not align with having no clue.
+
+```{r}
+#alpha/(alpha+beta)
+1/2
+```
+
+## c.
+
+What is the standard deviation of the Beta prior that you specified?
+
+```{r}
+(1*1)/(
+  (1+1)^2 * (1+1+1)
+)
+```
+
+## d.
+
+Specify and plot an example of a Beta prior that has a smaller standard deviation than the one you specified.
+
+```{r}
+plot_beta(1.75,1.75)
+((1.75)^2)/(
+  ((1.75*2)^2) * (1.75 + 1.75 + 1)
+)
+```
+
+
+## e.
+
+Specify and plot an example of a Beta prior that has a larger standard deviation than the one you specified.
+
+```{r}
+plot_beta(0.75, 0.75)
+((0.75)^2)/(
+  ((0.75*2)^2) * (0.75 + 0.75 + 1)
+)
+```
+
+
+# Exercise 3.4
+
+_(Which Beta? Take I)_ Six Beta pdfs are plotted below. Match each to one of the following models: Beta(0.5,0.5), Beta(1,1), Beta(2,2), Beta(6,6), Beta(6,2), Beta(0.5,6). 
+
+[1,1] = Beta(0.5,0.5)
+[2,1] = Beta(1,1)
+[1,2] = Beta(2,2)
+[1,3] = Beta(6,2)
+[2,2] = Beta(0.5,6)
+[2,3] = Beta(6,6)
+
+# Exercise 3.5
+
+_(Which Beta? Take II)_ Six Beta pdfs are plotted below. Match each to one of the following models: Beta(1,0.3), Beta(2,1), Beta(3,3), Beta(6,3), Beta(4,2), Beta(5,6). 
+
+[1,1] = Beta(1,0.3)
+[1,2] = Beta(3,3)
+[1,3] = Beta(4,2)
+[2,1] = Beta(2,1)
+[2,2] = Beta(5,6)
+[2,3] = Beta(6,3)
+
+# Exercise 3.6 
+
+_(Beta properties)_ Examine the properties of the Beta models in Exercise 3.4. 
+
+## a. 
+
+> Which Beta model has the smallest mean? The biggest? Provide visual evidence and calculate the corresponding means.
+
+El modelo Beta(0.5,6) tiene la media mas chica de $\frac{\alpha}{\alpha + \beta}=\frac{0.5}{0.5+6}=0.07$
+
+El modelo Beta(6,2) tiene la media mas grande de $\frac{\alpha}{\alpha + \beta}=\frac{6}{6+2}=0.75$
+
+```{r}
+plot_beta(0.5,6, mean = T)
+plot_beta(6,2, mean = T)
+```
+
+
+## b. 
+
+> Which Beta model has the smallest mode? The biggest? Provide visual evidence and calculate the corresponding modes.
+
