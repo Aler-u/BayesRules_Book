@@ -245,16 +245,85 @@ No tenemos datos numericos en este caso asi que tenemos que guiarnos por la intu
 ```{r}
 plot_beta(0.1,0.1)
 ```
+# Exercise 3.2
 
+> _(Tune your Beta prior: Take II)_ As in Exercise 3.1, tune an appropriate Beta(α,β) prior model for each situation below. 
+
+# a.
+
+```
+Your friend tells you “I think that I have a 80% chance of getting a full night of sleep tonight, and I am pretty certain.” When pressed further, they put their chances between 70% and 90%.
+```
+
+Necesitamos una media de 80 y un desvio de entre 70 y 90, es muy parecida a la primera consigna del ejercicio 3.1
+
+```{r}
+varianza_beta(0.8, 0.9)
+```
+Vemos que con un valor de aproximadamente 50 seria suficiente para tener la distribucion que queremos por lo cual calculamos el $\beta$ correspondiente a un $\alpha$ de 50, que seria `r parameter_relation(0.8, 50)` lo cual nos da una distribucion $Beta(50,12.5)$
+
+```{r}
+plot_beta(50, parameter_relation(0.8, 50))
+```
+
+## b.
+
+```
+A scientist has created a new test for a rare disease. They expect that it’s accurate 90% of the time with a variance of 0.08.
+```
+
+La resolucion es igual que en la segunda consigna del ejercicio anterior. Si la media es 0.9 sabemos que la relacion entre las medias es $\frac{1}{9}$, solamente es necesario que la varianza sea igual a 0.08 para lo cual usamos la formula
+
+$0.08 = \frac{\alpha\beta}{(\alpha+\beta)^2(\alpha+\beta+1)}$
+
+Dado que 
+
+$\beta=\frac{1}{9}\alpha$
+
+$0.08 = \frac{(\alpha)(\frac{1}{9}\alpha)}{(\alpha+\frac{1}{9}\alpha)^2(\alpha+\frac{1}{9}\alpha+1)}$
+
+
+## c.
+
+```
+Max loves to play the video game Animal Crossing. They tell you: “The probability that I play Animal Crossing in the morning is somewhere between 75% and 95%, but most likely around 85%.”
+```
+
+La media es de 0.85 pero en este caso no queremos incluir al 1 (100%) asi que hacemos el calculo normal de la varianza
+
+```{r}
+varianza_beta(0.85, 0.95)
+```
+
+Un valor $\alpha$ de 40 seria suficiente lo cual nos da un $\beta$ de `r parameter_relation(0.85, 40)` que podemos redondear en `r round(parameter_relation(0.85, 40), 1)`. De ahi nos queda una distribucion $Beta(40,7.1)$
+
+```{r}
+plot_beta(40, parameter_relation(0.85, 40))
+```
+
+## d.
+
+```
+The bakery in Easthampton, Massachusetts often runs out of croissants on Sundays. Ben guesses that by 10 a.m., there is a 30% chance they have run out, but is pretty unsure about that guess.
+```
+
+No tenemos un numero para estimar la varianza pero queremos una varianza significativamente grande. Sabemos que queremos una media de 0.3 con lo cual podriamos ver un valor muy bajo de $\alpha$ como puede ser el 2 y calcular el respectivo valor $\beta$ para obtener una distribucion con mucha varianza.
+
+```{r}
+plot_beta(2, parameter_relation(0.3, 2))
+```
 
 
 # Exercise 3.3
 
-_(It’s OK to admit you don’t know)_ You want to specify a Beta prior for a situation in which you have no idea about some parameter $\pi$. You think $\pi$ is equally likely to be anywhere between 0 and 1. Specify and plot the appropriate Beta prior model.
+>_(It’s OK to admit you don’t know)_ You want to specify a Beta prior for a situation in which you have no idea about some parameter $\pi$. You think $\pi$ is equally likely to be anywhere between 0 and 1. Specify and plot the appropriate Beta prior model.
 
 ## a.
 
+```
 Specify and plot the appropriate Beta prior model.
+```
+
 
 ```{r}
 plot_beta(1, 1)
@@ -262,7 +331,9 @@ plot_beta(1, 1)
 
 ## b.
 
+```
 What is the mean of the Beta prior that you specified? Explain why that does or does not align with having no clue.
+```
 
 ```{r}
 #alpha/(alpha+beta)
@@ -271,7 +342,9 @@ What is the mean of the Beta prior that you specified? Explain why that does or 
 
 ## c.
 
+```
 What is the standard deviation of the Beta prior that you specified?
+```
 
 ```{r}
 (1*1)/(
@@ -350,3 +423,197 @@ plot_beta(6,2, mean = T)
 ```
 Which Beta model has the smallest mode? The biggest? Provide visual evidence and calculate the corresponding modes.
 ```
+
+Generamos una funcion de calculo de la moda 
+
+```{r}
+beta_moda <- function(alfa, beta){
+  (alfa-1)/(alfa+beta-2)
+}
+```
+
+Calculamos la moda para todas las distribuciones
+
+```{r}
+alfas <- c(0.5, 1, 2, 6, 6, 0.5)
+betas <- c(0.5, 1, 2, 6, 2, 6)
+beta_moda(alfas, betas)
+```
+La funcion de moda utilizada no esta definida para parametros menores a 1 por lo que ignoramos el ultimo valor y tenemos que la moda mas chica es la de las primeras distribuciones mientras que la mas grande es la de la distribucion $Beta(6,2)$.
+
+Para dar evidencia visual utilizamos una de las distribuciones con moda 0.5 y la anteultima distribucion con mayor moda
+
+```{r}
+plot_beta(2,2, mode = T)
+plot_beta(6,2, mode = T)
+```
+
+
+## c.
+
+```
+Which Beta model has the smallest standard deviation? The biggest? Provide visual evidence and calculate the corresponding standard deviations.
+```
+
+```{r}
+desviacion_beta <- function(alfa, beta){
+  sqrt(
+    (alfa*beta)/(
+      ((alfa+beta)^2) * (alfa+beta+1)
+    )
+  )
+}
+desviacion_beta(alfas, betas)
+```
+
+
+La desviacion mas chica es la del ultimo modelo $Beta(0.5,6)$ y la desviacion mas grande es la de la primera distribucion $Beta(0.5,0.5)$
+
+```{r}
+plot_beta(0.5,0.5)
+plot_beta(0.5,6)
+```
+
+# 3.7
+
+## a.
+
+
+# 3.8
+
+
+# 3.9
+
+>  _(Interpreting priors)_ What do you call a sweet carbonated drink: pop, soda, coke, or something else? Let π be the proportion of U.S. residents that prefer the term “pop.” Two different beverage salespeople from different regions of the country have different priors for π. The first salesperson works in North Dakota and specifies a Beta(8,2) prior. The second works in Louisiana and specifies a Beta(1,20) prior. 
+
+## a.
+
+```
+Calculate the prior mean, mode, standard deviation of π for both salespeople.
+```
+
+```{r}
+sales_nd <- c(8,2)
+sales_lo <- c(1,20)
+```
+
+La media del primer vendedor es `r sales_nd[1]/sum(sales_nd)` y la del segundo es `r sales_lo[1]/sum(sales_lo)`. La moda en un caso es `r beta_moda(sales_nd[1], sales_nd[2])` y en el otro caso es `r beta_moda(sales_lo[1], sales_lo[2])`. Por ultimo la desviacion para el primer vendedor es de `r desviacion_beta(sales_nd[1], sales_nd[2])` y la del segundo es `r desviacion_beta(sales_lo[1], sales_lo[2])`. 
+
+## b.
+
+```
+Plot the prior pdfs for both salespeople
+```
+
+```{r}
+plot_beta(8,2)
+plot_beta(1,20)
+```
+
+## c.
+
+```
+Compare, in words, the salespeople’s prior understandings about the proportion of U.S. residents that say “pop.”
+```
+
+# 3.10 
+
+> _(Different priors, different posteriors)_ Continuing Exercise 3.9, we poll 50 U.S. residents and 12 (24%) prefer the term “pop.” 
+
+## a. 
+
+```
+Specify the unique posterior model of π for both salespeople. We encourage you to construct these posteriors from scratch.
+```
+
+Tenemos dos priors. Uno dado por $Beta(8,2)$ y otro dado por $Beta(1,20)$. Siendo $y = 12$ la cantidad de personas que se encontraron que usan el termino __pop__ y $n = 50$ la cantidad de residentes totales que se encuestaron, la actualizacion bayesiana del prior estaria dada por la formula
+
+$Beta(\alpha + y, \beta + n - y)$ 
+
+Para nuestro caso esto daria dos formulas dado los dos priors que son
+
+$Beta(8 + 12, 2 + 50 - 12) = Beta(20, 40)$ 
+
+$Beta(1 + 12, 20 + 50 - 12) = Beta(13, 58)$
+
+## b.
+
+```
+Plot the prior pdf, likelihood function, and posterior pdf for both salespeople.
+```
+
+Para el vendedor de North Dakota el resultado es 
+
+```{r}
+plot_beta_binomial(8,2,12,50)
+```
+
+
+Para el vendedor de Louisiana el modelo posterior es 
+
+```{r}
+plot_beta_binomial(1, 20, 12, 50)
+```
+
+# 3.11
+
+> _(Regular bike ridership)_ A university wants to know what proportion of students are regular bike riders, π, so that they can install an appropriate number of bike racks. Since the university is in sunny Southern California, staff think that π has a mean of 1 in 4 students, and a mode of 5/22. 
+
+## a.
+
+```
+Specify and plot a Beta model that reflects the staff’s prior ideas about π.
+```
+
+Una media de 1 en 4 estudiantes es analogo a decir que hay un exito en 4 intentos lo cual es equivalente a decir que $\alpha = 1$ y que $\alpha+\beta=4$. Segun la formula de la media $\frac{\alpha}{\alpha+\beta}$ esto seria como decir $\frac{1}{4}$ con lo cual la media es $E(\pi)=0.25$. 
+
+Si sabemos que la media es de 0.25 significa la relacion entre los parametros es $\beta=3\alpha$. Tenemos otro dato que es el valor de la moda $\frac{5}{22}$. Segun la formula de la moda esto seria igual que decir
+
+$\frac{5}{22}=\frac{\alpha-1}{\alpha+\beta-2}$
+
+Pero sabemos que valor toma $\beta$ en relacion con $\alpha$ por lo cual podemos reemplazar para quedarnos con
+
+$\frac{5}{22}=\frac{\alpha-1}{\alpha+3\alpha-2}$
+
+$\frac{5}{22}=\frac{\alpha-1}{4\alpha-2}$
+
+De ahi operamos para resolver la incognita
+
+$\frac{5}{22}(4\alpha-2)=\frac{\alpha-1}{4\alpha-2}(4\alpha-2)$
+
+$\frac{(20\alpha-10)22}{22}=(\alpha-1)22$
+
+$20\alpha-10=22\alpha-22$
+
+$-10+22=22\alpha-20\alpha$
+
+$12=2\alpha$
+
+$6=\alpha$
+
+Finalmente podemos comprobar el resultado
+
+```{r}
+summarize_beta(6, parameter_relation(0.25, 6))
+```
+
+## b.
+
+```
+Among 50 surveyed students, 15 are regular bike riders. What is the posterior model for π?
+```
+
+El modelo de la posterior seria $Beta(6 + 15, 18 + 50 - 15) = Beta(21,53)$
+
+## c.
+
+```
+What is the mean, mode, and standard deviation of the posterior model?
+```
+
+```{r}
+summarize_beta(6 + 15, 18 + 50 - 15)
+```
+
+## d.
+
