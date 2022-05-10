@@ -3,7 +3,7 @@ title: "Chapter 3"
 subtitle: "Exercises"
 author: "Alejandro Ramos Usaj"
 date: "5/5/2022"
-output: html_document
+output: html_notebook
 ---
 
 ```{r setup, include=FALSE}
@@ -14,15 +14,238 @@ library(tidyverse)
 
 # Exercise 3.1
 
-_(Tune your Beta prior: Take I)_ In each situation below, tune a Beta(α,β) model that accurately reflects the given prior information. In many cases, there’s no single “right” answer, but rather multiple “reasonable” answers. 
+> _(Tune your Beta prior: Take I)_ In each situation below, tune a Beta(α,β) model that accurately reflects the given prior information. In many cases, there’s no single “right” answer, but rather multiple “reasonable” answers. 
 
 ## a)
 
-Your friend applied to a job and tells you: “I think I have a 40% chance of getting the job, but I’m pretty unsure.” When pressed further, they put their chances between 20% and 60%.
-
-```{r}
+La consigna del primer ejercicio dice
 
 ```
+Your friend applied to a job and tells you: “I think I have a 40% chance of getting the job, but I’m pretty unsure.” When pressed further, they put their chances between 20% and 60%.
+```
+
+Para resolver este ejercicio y los subsiguientes podemos tomar inspiracion de 3.1.2 del libro. Ahi se indica que se quiere lograr una media de la distribucion que sea igual a 0.45 (o 45% que es lo mismo). Para eso se utiliza la siguiente formula
+
+$\mu=\frac{\alpha}{\alpha + \beta}$
+
+En el libro simplemente dice que luego de _'some rearranging'_ se llega a lo siguiente
+
+$\alpha \approx \frac{9}{11}\beta$ 
+
+Vamos a desarrollar como seria el re-ordenamiento de la ecuacion de la media en terminos generales
+
+$\mu=\frac{\alpha}{\alpha + \beta}$
+
+$\mu(\alpha+\beta)=\frac{\alpha}{\alpha + \beta} (\alpha+\beta)$
+
+$\mu\alpha+\mu\beta=\alpha$
+
+$\mu\beta=(1 - \mu)\alpha$
+
+$\beta=\frac{(1 - \mu)\alpha}{\mu}$
+
+Si reemplazamos en nuestra ecuacion el parametro $\mu$ por el numero que queremos obtener como media de la distribucion para este ejercicio que seria 0.4 (a partir del 40%) nos quedaria la siguiente solucion
+
+$0.4=\frac{\alpha}{\alpha + \beta}$
+
+$0.4(\alpha+\beta)=\frac{\alpha}{\alpha + \beta} (\alpha+\beta)$
+
+$0.4\alpha+0.4\beta=\alpha$
+
+$0.4\beta=\alpha - 0.4\alpha$
+
+$\beta=\frac{0.6\alpha}{0.4}$
+
+$\beta=1.5\alpha=\frac{3}{2}\alpha$
+
+Tenemos entonces que $\beta$ es igual a $\alpha$ multiplicado por 1.5, con lo cual cualquier numero que definamos de $\alpha$ tenemos que multiplicarlo por esa cantidad para obtener el parametro $\beta$ de la distribucion.
+Si aplicaramos el mismo razonamiento con el ejemplo de la seccion 3.1.2 quedaria
+
+$\beta = \frac{(1 - 0.45)\alpha}{0.45}$
+
+$\beta = \frac{(0.55)\alpha}{0.45}$
+
+$\beta = 1.22\alpha$
+
+Si quisieramos mostrarlo en terminos de beta como esta en el libro simplemente hacemos lo siguiente
+
+$\beta = \frac{(0.55)\alpha}{0.45}$
+
+$\beta \frac{0.45}{0.55} = \frac{(0.55)\alpha}{0.45} \frac{0.45}{0.55}$
+
+$\beta \frac{0.45}{0.55} = \alpha$
+
+La fraccion $\frac{0.45}{0.55}$ puede expresarse tambien como $\frac{9}{11}$ tal como figura en el libro. De hecho si multiplicaramos ambos terminos de la fraccion $\frac{0.45}{0.55}$ por 100 obtendriamos los dos parametros de una de las distribuciones usadas como ejemplo en esa seccion lo cual seria equivalente a multiplicar ambos numeros de la fraccion $\frac{9}{11}$ por 5. 
+
+Por lo tanto para cualquier consigna de este ejercicio, el primer paso seria aplicar la formula $\beta=\frac{(1 - \mu)\alpha}{\mu}$ para establecer la relacion entre los parametros con el objetivo de tener una determinada media. Siendo que es algo que vamos a usar para todas las consignas lo vamos a convertir en una funcion.
+
+
+```{r}
+parameter_relation <- function(media, alfa){
+  relacion <- (1-media)/(media)
+  beta <- alfa*relacion
+  return(beta)
+}
+```
+
+Ahora entonces comprobamos que la funcion cumpla adecuadamente con el ejemplo para el que ya calculamos la relacion donde un $\alpha$ de 2 nos deberia dar un $\beta$ de `r 1.5 * 2`. 
+
+```{r}
+parameter_relation(0.4, 2)
+```
+
+Excelente, la funcion hace todo como esperamos. Lo proximo que hay que definir es la varianza de la distribucion. La consigna nos aclara que 
+
+```
+When pressed further, they put their chances between 20% and 60%.
+```
+
+Nada le impide a la distribucion beta tomar valores por debajo de 0.2 (20%) o por arriba de 0.6 (60%). Tenemos que formalizar un poco entonces a que se refiere con que las chances estan entre esos valores. Si volvemos a ver el ejemplo de la seccion 3.1.2 se utilizar una distribucion que tiene un desvio $\sigma = 0.05$ lo cual significa que a un desvio de la media tenemos el intervalo [`r 0.45-0.05`,`r 0.45+0.05`] mientras que a dos desvios tenemos el intervalo [`r 0.45-(2*0.05)`,`r 0.45+(2*0.05)`] y recien a 4 desvios tenemos [`r 0.45-(4*0.05)`,`r 0.45+(4*0.05)`] que es el del ejemplo. Para ganar un poco mas de intuicion vamos a graficar como cambia el percentil del umbral superior del intervalo (0.65) segun distintas distribuciones beta siendo que todas cumplen con la relacion $\beta = \frac{9}{11} \alpha$. Aprovechamos entonces la funcion que creamos anteriormente y generamos una secuencia de valores alfa del 2 al 55 y sus respectivos beta donde para cada distribucion calculamos el percentil que ocupa el valor 0.65 usando la funcion `pbeta` que nos da el valor en la acumulada de la distribucion beta.
+
+```{r}
+plot(
+  seq(2,55),
+  sapply(
+  seq(2,55),
+  function(x) pbeta(0.65, x, parameter_relation(0.45,x))
+  ),
+  type = 'l',
+  xlab = 'Valor alfa', ylab = 'Percentil'
+)
+```
+Se ve en el grafico que con un valor de alfa de 10 ya tenemos mas del 95% de la distribucion por debajo del valor de .65 y en particular para el ejemplo que se uso de $Beta(45,55) nos da un valor de `r pbeta(0.65,45,55)` lo cual es practicamente toda la distribucion por debajo de ese valor. 
+
+Como ya dijimos no hay un valor correcto para la varianza asi que lo mejor podria ser aproximarlo a partir de un grafico como el anterior asi que vamos a convertirlo en una funcion que podamos aplicar a las siguientes consignas. 
+
+```{r}
+varianza_beta <- function(media, superior, start_sequence = 1, end_sequence= 100){
+  plot(
+  seq(start_sequence, end_sequence),
+  sapply(
+  seq(start_sequence, end_sequence),
+  function(x) pbeta(superior, x, parameter_relation(media,x))
+  ),
+  type = 'l',
+  xlab = 'Valor alfa', ylab = 'Percentil'
+  )
+}
+```
+
+Finalmente para nuestro caso particular replicamos el grafico utilizando los datos de la consigna
+
+```{r}
+varianza_beta(0.4, 0.6)
+```
+Con un 20 es suficiente para captar la mayoria de la distribucion por lo que la distribucion final quedaria en un $\alpha$ de 20 y un $\beta$ de `r parameter_relation(0.4,20)`, $Beta(20,30)$. 
+
+```{r}
+plot_beta(20,30)
+```
+
+
+## b.
+
+```
+A scientist has created a new test for a rare disease. They expect that the test is accurate 80% of the time with a variance of 0.05.
+```
+
+En este caso en lugar de los intervalos de la distribucion que nos interesan tenemos el valor exacto de la varianza por lo cual podemos calcular con precision los valores que queremos de los parametros. 
+
+Para el primer caso vemos que la relacion esta dada por `r (1-0.8)/0.8` de $\alpha$ lo cual implica un $\beta$ mucho menor y esto tiene sentido si la media es muy grande (0.8). 
+
+Para la varianza nos alcanza con aplicar la formula de la varianza. Podemos resolverlo analiticamente de manera sencilla si reemplazamos $\beta$ por $0.25\alpha$. 
+
+$0.05 = \frac{\alpha(0.25\alpha)}{(\alpha+0.25\alpha)^2 (\alpha+0.25\alpha+1)}$
+
+$0.05 = \frac{\alpha(0.25\alpha)}{\alpha(1+0.25)^2 (\alpha+0.25\alpha+1)}$
+
+$0.05 = \frac{(0.25\alpha)}{(1.25)^2 (\alpha+0.25\alpha+1)}$
+
+$0.05(1.5625 (1.25\alpha+1)) = \frac{(0.25\alpha)}{1.5625 (1.25\alpha+1)}(1.5625 (1.25\alpha+1))$
+
+$0.078125(1.25\alpha+1)=0.25$
+
+$\frac{0.078125(1.25\alpha+1)}{0.078125}= \frac{0.25}{0.078125}$
+
+$1.25\alpha + 1 = \frac{0.25}{0.078125}$
+
+$1.25\alpha= \frac{0.25}{0.078125} - 1$
+
+$1.25\alpha= \frac{0.171875}{0.078125}$
+
+$\alpha= \frac{0.171875}{0.078125}(1.25)^{-1}$
+
+$\alpha = 1.76$
+
+Verificamos ahora que un $\alpha$ de 1.76 y un $\beta$ de `r parameter_relation(0.8, 1.76)` nos dan una varianza de 0.05 segun el siguiente calculo
+
+$0.05 = \frac{(1.76)(0.44)}{(1.76+0.44)^2(1.76+0.44+1)}$
+
+Que resolvemos con R de la siguiente manera
+
+```{r}
+parametro_alfa <- 1.76
+parametro_beta <- parameter_relation(0.8, parametro_alfa)
+
+(parametro_alfa * parametro_beta)/(
+  ((parametro_alfa+parametro_beta)^2) * (parametro_alfa+parametro_beta+1)
+)
+```
+Como ejercicio de calculo numerico podemos ver que nos indica nuestra funcion de la varianza dando como umbral el valor un desvio por encima de la media
+
+```{r}
+varianza_beta(0.8, 0.8+0.05, 1, 5)
+```
+
+
+
+Comprobamos asi que llegamos a la solucion correcta y la distribucion que nos queda es 
+
+```{r}
+plot_beta(1.76,0.44)
+```
+
+
+## c.
+
+```
+Your Aunt Jo is a successful mushroom hunter. She boasts: “I expect to find enough mushrooms to feed myself and my co-workers at the auto-repair shop 90% of the time, but if I had to give you a likely range it would be between 85% and 100% of the time.”
+```
+
+En este caso el umbral superior es 1 y siempre vamos a tener a toda la distribucion acumulada por debajo de ese valor porque es el valor maximo que puede alcanzar la distribucion. Podemos utilizar la misma funcion para graficar la varianza en funcion del parametro alfa para el umbral inferior y ver cuanto de la distribucion queda por debajo. Queremos sin embargo que la distribucion tenga una forma exponencial y no simetrica porque queremos que capte el 1 (100%) asi que tenemos que fijar beta en 1 y modificar unicamente alfa. Por eso tenemos que circunscribirnos a valores de alfa bajos que mantengan la forma exponencial, por ejemplo valores menores a 5 pero mayores a 1, de lo contrario tendriamos algo asi.
+
+```{r}
+plot_beta(10,
+          parameter_relation(0.9, 10))
+```
+
+Por lo tanto vemos que valores minimizan la varianza en el intervalo [1,5]
+
+```{r}
+varianza_beta(0.9, 0.85, 1, 5)
+```
+
+Vemos que el valor con la varianza mas baja es justamente un $\alpha$ de 1 y un $\beta$ de `r parameter_relation(0.9, 1)` lo cual significa que la relacion esta dada por la fraccion $\frac{1}{9}$.
+
+Al final la mejor distribucion seria la siguiente 
+
+```{r}
+plot_beta(1, parameter_relation(0.9, 1))
+```
+
+
+## d.
+
+```
+Sal (who is a touch hyperbolic) just interviewed for a job, and doesn’t know how to describe their chances of getting an offer. They say, “I couldn’t read my interviewer’s expression! I either really impressed them and they are absolutely going to hire me, or I made a terrible impression and they are burning my resumé as we speak.”
+```
+
+No tenemos datos numericos en este caso asi que tenemos que guiarnos por la intuicion. Sabemos que una distribucion beta con parametros $\alpha,\beta < 1$ va a dar una densidad muy baja en los valores cercanos a 0.5 y muy alto en los valores cercanos a 0 y 1 que captaria justamente el comportamiento en este caso. Podemos plantear entonces una de tantas posibles distribuciones betas para este problema dada por $Beta(0.1,0.1)$
+
+```{r}
+plot_beta(0.1,0.1)
+```
+
 
 
 # Exercise 3.3
@@ -104,11 +327,13 @@ _(Which Beta? Take II)_ Six Beta pdfs are plotted below. Match each to one of th
 
 # Exercise 3.6 
 
-_(Beta properties)_ Examine the properties of the Beta models in Exercise 3.4. 
+> _(Beta properties)_ Examine the properties of the Beta models in Exercise 3.4. 
 
 ## a. 
 
-> Which Beta model has the smallest mean? The biggest? Provide visual evidence and calculate the corresponding means.
+```
+Which Beta model has the smallest mean? The biggest? Provide visual evidence and calculate the corresponding means.
+```
 
 El modelo Beta(0.5,6) tiene la media mas chica de $\frac{\alpha}{\alpha + \beta}=\frac{0.5}{0.5+6}=0.07$
 
@@ -122,5 +347,6 @@ plot_beta(6,2, mean = T)
 
 ## b. 
 
-> Which Beta model has the smallest mode? The biggest? Provide visual evidence and calculate the corresponding modes.
-
+```
+Which Beta model has the smallest mode? The biggest? Provide visual evidence and calculate the corresponding modes.
+```
