@@ -617,3 +617,151 @@ summarize_beta(6 + 15, 18 + 50 - 15)
 
 ## d.
 
+```
+Does the posterior model more closely reflect the prior information or the data? Explain your reasoning.
+```
+
+# Exercise 3.12
+
+> A 2017 Pew Research survey found that 10.2% of LGBT adults in the U.S. were married to a same-sex spouse.29 Now it’s the 2020s, and Bayard guesses that π, the percent of LGBT adults in the U.S. who are married to a same-sex spouse, has most likely increased to about 15% but could reasonably range from 10% to 25%. 
+
+
+## a.
+
+```
+Identify and plot a Beta model that reflects Bayard’s prior ideas about pi.
+```
+
+```{r}
+varianza_beta(0.15, 0.25)
+```
+
+Con un valor de 20 seria suficiente para lograr un prior con esa variabilidad. Si vamos con ese valor tenemos un $\alpha$ de 20 y un $\beta$ redondeado de `r round(parameter_relation(0.15,20))` lo cual daria una distribucion $Beta(20,113)$. Podemos ahora graficarla y tambien agregarle dos lineas representando los dos umbrales del rango de valores que esperamos.
+
+```{r}
+plot_beta(20,113) +
+  geom_vline(
+    aes(xintercept = c(0.1,0.25)), linetype = 'dashed'
+    )
+```
+
+Sin embargo el umbral inferior de la varianza que queremos no esta bien representado podemos repetir entonces el calculo de la varianza para el rango inferior.
+
+```{r}
+varianza_beta(0.15, 0.1)
+```
+
+Necesitamos valores mas cercanos al 30 o al 40 incluso si queremos que ese umbral este bien representado. Vamos a probar con un valor $\alpha$ de 30 que tiene asociado un valor $\beta$ de `r parameter_relation(0.15,30)` lo cual nos da una distribucion $Beta(30,170)$.
+
+```{r}
+plot_beta(30,170) +
+  geom_vline(
+    aes(xintercept = c(0.1,0.25)), linetype = 'dashed'
+    )
+```
+En este caso la distribucion pareceria estar representando mejor la variabilidad del prior. 
+
+## b.
+
+```
+Bayard wants to update his prior, so he randomly selects 90 US LGBT adults and 30 of them are married to a same-sex partner. What is the posterior model for pi?
+```
+
+El modelo actualizado seria $Beta(30+30, 170 + 90 - 30)=Beta(60, 230)$
+
+```{r}
+plot_beta_binomial(30, 170, 30, 90)
+```
+
+## c.
+
+```
+Calculate the posterior mean, mode, and standard deviation of pi.
+```
+
+```{r}
+summarize_beta(60, 230)
+```
+
+## d.
+
+```
+Does the posterior model more closely reflect the prior information or the data? Explain your reasoning
+```
+
+# Exercise 3.13
+
+>  A September 2016 Pew Research survey found that 30% of U.S. adults are aware that they know someone who is transgender.30 It is now the 2020s, and Sylvia believes that the current percent of people who know someone who is transgender, π, has increased to somewhere between 35% and 60%. 
+
+## a.
+
+```
+Identify and plot a Beta model that reflects Sylvia’s prior ideas about pi
+```
+
+No tenemos ninguna media definida pero queremos que los datos se encuentren entre el 35% y el 60%, eso implica que necesitamos que el el valor de $\beta$ sea mas grande que el valor de $\alpha$. Teniendo esa nocion podemos realizar un grafico donde expresemos en el eje y la probabilidad acumulada de estar entre 35% y 60% mientras que en el eje x representamos los parametros de la distribucion. 
+
+Para esto conviene dejar fijo el parametro en un numero arbitrario de $\beta$ que sea relativamente grande (ej. 10) y modificamos el alfa multiplicandolo por una secuencia incremental de numeros.
+
+```{r}
+valor_beta <- 10
+plot(
+  x = valor_beta*seq(0.01, 5, 0.001),
+  y = pbeta(0.6, valor_beta*seq(0.01, 5, 0.001), valor_beta) - pbeta(0.35, valor_beta*seq(0.01, 5, 0.001), valor_beta),
+  type = 'l',
+  xlab = 'Alfa',
+  ylim = c(0,1)
+)
+```
+Vemos que para los valores de $\beta$ cercanos a 10 tenemos alrededor de un 70% de la distribucion por debajo de 0.6 y por arriba de 0.35 que seria lo que estamos buscando. Mas concretamente podemos ver cual es el valor para el cual se maximiza esta probabilidad.
+
+```{r}
+valor_beta*seq(0.01,5, 0.001)[
+which.max(pbeta(0.6, valor_beta*seq(0.01, 5, 0.001), valor_beta) - pbeta(0.35, valor_beta*seq(0.01, 5, 0.001), valor_beta))
+]
+```
+El numero que maximiza este valor entonces es el 9.5 y si lo graficaramos en una distribucion del tipo $Beta(9.5,10)$ nos daria algo de esta forma.
+
+```{r}
+plot_beta(9.5, 10) +
+  geom_vline(aes(xintercept = c(0.35,0.6)), linetype = 'dashed')
+```
+
+Lo que podriamos hacer ahora entonces es calcular el valor maximo de este rango de probabilidades para distintos valores de $\beta$ explorando siempre el rango de valores $\alpha$ multiplicando a ese $\beta$ por distintos numeros como hicimos anteriormente.
+
+```{r}
+plot(
+  x = seq(1,50, 1), #rango de valores beta
+  y = sapply(
+  seq(1,50, 1),  # variamos el valor de beta
+  function(x){ #Para cada valor de beta calculamos
+    max( #El maximo que alcanza el rango de probabilidades entre 35% y 60%
+      pbeta(0.6, x*seq(0.01, 5, 0.001), x) - pbeta(0.35, x*seq(0.01, 5, 0.001), x)
+      )
+    }
+  ),
+  type = 'l',
+  xlab = 'Beta', ylab = 'Probabilidad'
+)
+```
+
+Con este grafico queda demostrado el rango de probabilidades de esos valores crece con el valor de $\beta$ y un valor relativamente optimo seria entre 20 y 30 ya que estariamos captando mas del 80% de la distribucion. Podemos tomar 25 como punto intermedio.
+
+Nos faltaria determinar el valor optimo de $\alpha$ para un $\beta$ de 25 pero para esto repetimos el procedimiento que hicimos al principio.
+
+```{r}
+#Definimos la secuencia de valores de alfa
+25*seq(0.01,5,0.001)[ #Seleccionamos de esta secuencia el valor maximo
+  which.max(
+    pbeta(0.6, 25*seq(0.01,5,0.001), 25) - pbeta(0.35, 25*seq(0.01,5,0.001), 25)
+  )
+]
+```
+
+Graficamos ahora la distribucion $Beta(23.025,25)$ y obtenemos lo que queriamos
+
+```{r}
+plot_beta(23.025, 25) +
+  geom_vline(aes(xintercept = c(0.35,0.6)), linetype = 'dashed')
+```
+
