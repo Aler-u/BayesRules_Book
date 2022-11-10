@@ -3,7 +3,7 @@ title: "Chapter 3"
 subtitle: "Exercises"
 author: "Alejandro Ramos Usaj"
 date: "5/5/2022"
-output: html_document
+output: html_notebook
 ---
 
 ```{r setup, include=FALSE}
@@ -14,24 +14,316 @@ library(tidyverse)
 
 # Exercise 3.1
 
-_(Tune your Beta prior: Take I)_ In each situation below, tune a Beta(α,β) model that accurately reflects the given prior information. In many cases, there’s no single “right” answer, but rather multiple “reasonable” answers. 
+> _(Tune your Beta prior: Take I)_ In each situation below, tune a Beta(α,β) model that accurately reflects the given prior information. In many cases, there’s no single “right” answer, but rather multiple “reasonable” answers. 
 
 ## a)
 
+La consigna del primer ejercicio dice
+
+```
 Your friend applied to a job and tells you: “I think I have a 40% chance of getting the job, but I’m pretty unsure.” When pressed further, they put their chances between 20% and 60%.
+```
+
+Para resolver este ejercicio y los subsiguientes podemos tomar inspiracion de 3.1.2 del libro. Ahi se indica que se quiere lograr una media de la distribucion que sea igual a 0.45 (o 45% que es lo mismo). Para eso se utiliza la siguiente formula
+
+$\mu=\frac{\alpha}{\alpha + \beta}$
+
+En el libro simplemente dice que luego de _'some rearranging'_ se llega a lo siguiente
+
+$\alpha \approx \frac{9}{11}\beta$ 
+
+Vamos a desarrollar como seria el re-ordenamiento de la ecuacion de la media en terminos generales
+
+$\mu=\frac{\alpha}{\alpha + \beta}$
+
+$\mu(\alpha+\beta)=\frac{\alpha}{\alpha + \beta} (\alpha+\beta)$
+
+$\mu\alpha+\mu\beta=\alpha$
+
+$\mu\beta=(1 - \mu)\alpha$
+
+$\beta=\frac{(1 - \mu)\alpha}{\mu}$
+
+Si reemplazamos en nuestra ecuacion el parametro $\mu$ por el numero que queremos obtener como media de la distribucion para este ejercicio que seria 0.4 (a partir del 40%) nos quedaria la siguiente solucion
+
+$0.4=\frac{\alpha}{\alpha + \beta}$
+
+$0.4(\alpha+\beta)=\frac{\alpha}{\alpha + \beta} (\alpha+\beta)$
+
+$0.4\alpha+0.4\beta=\alpha$
+
+$0.4\beta=\alpha - 0.4\alpha$
+
+$\beta=\frac{0.6\alpha}{0.4}$
+
+$\beta=1.5\alpha=\frac{3}{2}\alpha$
+
+Tenemos entonces que $\beta$ es igual a $\alpha$ multiplicado por 1.5, con lo cual cualquier numero que definamos de $\alpha$ tenemos que multiplicarlo por esa cantidad para obtener el parametro $\beta$ de la distribucion.
+Si aplicaramos el mismo razonamiento con el ejemplo de la seccion 3.1.2 quedaria
+
+$\beta = \frac{(1 - 0.45)\alpha}{0.45}$
+
+$\beta = \frac{(0.55)\alpha}{0.45}$
+
+$\beta = 1.22\alpha$
+
+Si quisieramos mostrarlo en terminos de beta como esta en el libro simplemente hacemos lo siguiente
+
+$\beta = \frac{(0.55)\alpha}{0.45}$
+
+$\beta \frac{0.45}{0.55} = \frac{(0.55)\alpha}{0.45} \frac{0.45}{0.55}$
+
+$\beta \frac{0.45}{0.55} = \alpha$
+
+La fraccion $\frac{0.45}{0.55}$ puede expresarse tambien como $\frac{9}{11}$ tal como figura en el libro. De hecho si multiplicaramos ambos terminos de la fraccion $\frac{0.45}{0.55}$ por 100 obtendriamos los dos parametros de una de las distribuciones usadas como ejemplo en esa seccion lo cual seria equivalente a multiplicar ambos numeros de la fraccion $\frac{9}{11}$ por 5. 
+
+Por lo tanto para cualquier consigna de este ejercicio, el primer paso seria aplicar la formula $\beta=\frac{(1 - \mu)\alpha}{\mu}$ para establecer la relacion entre los parametros con el objetivo de tener una determinada media. Siendo que es algo que vamos a usar para todas las consignas lo vamos a convertir en una funcion.
+
 
 ```{r}
+parameter_relation <- function(media, alfa){
+  relacion <- (1-media)/(media)
+  beta <- alfa*relacion
+  return(beta)
+}
+```
 
+Ahora entonces comprobamos que la funcion cumpla adecuadamente con el ejemplo para el que ya calculamos la relacion donde un $\alpha$ de 2 nos deberia dar un $\beta$ de `r 1.5 * 2`. 
+
+```{r}
+parameter_relation(0.4, 2)
+```
+
+Excelente, la funcion hace todo como esperamos. Lo proximo que hay que definir es la varianza de la distribucion. La consigna nos aclara que 
+
+```
+When pressed further, they put their chances between 20% and 60%.
+```
+
+Nada le impide a la distribucion beta tomar valores por debajo de 0.2 (20%) o por arriba de 0.6 (60%). Tenemos que formalizar un poco entonces a que se refiere con que las chances estan entre esos valores. Si volvemos a ver el ejemplo de la seccion 3.1.2 se utilizar una distribucion que tiene un desvio $\sigma = 0.05$ lo cual significa que a un desvio de la media tenemos el intervalo [`r 0.45-0.05`,`r 0.45+0.05`] mientras que a dos desvios tenemos el intervalo [`r 0.45-(2*0.05)`,`r 0.45+(2*0.05)`] y recien a 4 desvios tenemos [`r 0.45-(4*0.05)`,`r 0.45+(4*0.05)`] que es el del ejemplo. Para ganar un poco mas de intuicion vamos a graficar como cambia el percentil del umbral superior del intervalo (0.65) segun distintas distribuciones beta siendo que todas cumplen con la relacion $\beta = \frac{9}{11} \alpha$. Aprovechamos entonces la funcion que creamos anteriormente y generamos una secuencia de valores alfa del 2 al 55 y sus respectivos beta donde para cada distribucion calculamos el percentil que ocupa el valor 0.65 usando la funcion `pbeta` que nos da el valor en la acumulada de la distribucion beta.
+
+```{r}
+plot(
+  seq(2,55),
+  sapply(
+  seq(2,55),
+  function(x) pbeta(0.65, x, parameter_relation(0.45,x))
+  ),
+  type = 'l',
+  xlab = 'Valor alfa', ylab = 'Percentil'
+)
+```
+Se ve en el grafico que con un valor de alfa de 10 ya tenemos mas del 95% de la distribucion por debajo del valor de .65 y en particular para el ejemplo que se uso de $Beta(45,55) nos da un valor de `r pbeta(0.65,45,55)` lo cual es practicamente toda la distribucion por debajo de ese valor. 
+
+Como ya dijimos no hay un valor correcto para la varianza asi que lo mejor podria ser aproximarlo a partir de un grafico como el anterior asi que vamos a convertirlo en una funcion que podamos aplicar a las siguientes consignas. 
+
+```{r}
+varianza_beta <- function(media, superior, start_sequence = 1, end_sequence= 100){
+  plot(
+  seq(start_sequence, end_sequence),
+  sapply(
+  seq(start_sequence, end_sequence),
+  function(x) pbeta(superior, x, parameter_relation(media,x))
+  ),
+  type = 'l',
+  xlab = 'Valor alfa', ylab = 'Percentil'
+  )
+}
+```
+
+Finalmente para nuestro caso particular replicamos el grafico utilizando los datos de la consigna
+
+```{r}
+varianza_beta(0.4, 0.6)
+```
+Con un 20 es suficiente para captar la mayoria de la distribucion por lo que la distribucion final quedaria en un $\alpha$ de 20 y un $\beta$ de `r parameter_relation(0.4,20)`, $Beta(20,30)$. 
+
+```{r}
+plot_beta(20,30)
+```
+
+
+## b.
+
+```
+A scientist has created a new test for a rare disease. They expect that the test is accurate 80% of the time with a variance of 0.05.
+```
+
+En este caso en lugar de los intervalos de la distribucion que nos interesan tenemos el valor exacto de la varianza por lo cual podemos calcular con precision los valores que queremos de los parametros. 
+
+Para el primer caso vemos que la relacion esta dada por `r (1-0.8)/0.8` de $\alpha$ lo cual implica un $\beta$ mucho menor y esto tiene sentido si la media es muy grande (0.8). 
+
+Para la varianza nos alcanza con aplicar la formula de la varianza. Podemos resolverlo analiticamente de manera sencilla si reemplazamos $\beta$ por $0.25\alpha$. 
+
+$0.05 = \frac{\alpha(0.25\alpha)}{(\alpha+0.25\alpha)^2 (\alpha+0.25\alpha+1)}$
+
+$0.05 = \frac{\alpha(0.25\alpha)}{\alpha(1+0.25)^2 (\alpha+0.25\alpha+1)}$
+
+$0.05 = \frac{(0.25\alpha)}{(1.25)^2 (\alpha+0.25\alpha+1)}$
+
+$0.05(1.5625 (1.25\alpha+1)) = \frac{(0.25\alpha)}{1.5625 (1.25\alpha+1)}(1.5625 (1.25\alpha+1))$
+
+$0.078125(1.25\alpha+1)=0.25$
+
+$\frac{0.078125(1.25\alpha+1)}{0.078125}= \frac{0.25}{0.078125}$
+
+$1.25\alpha + 1 = \frac{0.25}{0.078125}$
+
+$1.25\alpha= \frac{0.25}{0.078125} - 1$
+
+$1.25\alpha= \frac{0.171875}{0.078125}$
+
+$\alpha= \frac{0.171875}{0.078125}(1.25)^{-1}$
+
+$\alpha = 1.76$
+
+Verificamos ahora que un $\alpha$ de 1.76 y un $\beta$ de `r parameter_relation(0.8, 1.76)` nos dan una varianza de 0.05 segun el siguiente calculo
+
+$0.05 = \frac{(1.76)(0.44)}{(1.76+0.44)^2(1.76+0.44+1)}$
+
+Que resolvemos con R de la siguiente manera
+
+```{r}
+parametro_alfa <- 1.76
+parametro_beta <- parameter_relation(0.8, parametro_alfa)
+
+(parametro_alfa * parametro_beta)/(
+  ((parametro_alfa+parametro_beta)^2) * (parametro_alfa+parametro_beta+1)
+)
+```
+Como ejercicio de calculo numerico podemos ver que nos indica nuestra funcion de la varianza dando como umbral el valor un desvio por encima de la media
+
+```{r}
+varianza_beta(0.8, 0.8+0.05, 1, 5)
+```
+
+
+
+Comprobamos asi que llegamos a la solucion correcta y la distribucion que nos queda es 
+
+```{r}
+plot_beta(1.76,0.44)
+```
+
+
+## c.
+
+```
+Your Aunt Jo is a successful mushroom hunter. She boasts: “I expect to find enough mushrooms to feed myself and my co-workers at the auto-repair shop 90% of the time, but if I had to give you a likely range it would be between 85% and 100% of the time.”
+```
+
+En este caso el umbral superior es 1 y siempre vamos a tener a toda la distribucion acumulada por debajo de ese valor porque es el valor maximo que puede alcanzar la distribucion. Podemos utilizar la misma funcion para graficar la varianza en funcion del parametro alfa para el umbral inferior y ver cuanto de la distribucion queda por debajo. Queremos sin embargo que la distribucion tenga una forma exponencial y no simetrica porque queremos que capte el 1 (100%) asi que tenemos que fijar beta en 1 y modificar unicamente alfa. Por eso tenemos que circunscribirnos a valores de alfa bajos que mantengan la forma exponencial, por ejemplo valores menores a 5 pero mayores a 1, de lo contrario tendriamos algo asi.
+
+```{r}
+plot_beta(10,
+          parameter_relation(0.9, 10))
+```
+
+Por lo tanto vemos que valores minimizan la varianza en el intervalo [1,5]
+
+```{r}
+varianza_beta(0.9, 0.85, 1, 5)
+```
+
+Vemos que el valor con la varianza mas baja es justamente un $\alpha$ de 1 y un $\beta$ de `r parameter_relation(0.9, 1)` lo cual significa que la relacion esta dada por la fraccion $\frac{1}{9}$.
+
+Al final la mejor distribucion seria la siguiente 
+
+```{r}
+plot_beta(1, parameter_relation(0.9, 1))
+```
+
+
+## d.
+
+```
+Sal (who is a touch hyperbolic) just interviewed for a job, and doesn’t know how to describe their chances of getting an offer. They say, “I couldn’t read my interviewer’s expression! I either really impressed them and they are absolutely going to hire me, or I made a terrible impression and they are burning my resumé as we speak.”
+```
+
+No tenemos datos numericos en este caso asi que tenemos que guiarnos por la intuicion. Sabemos que una distribucion beta con parametros $\alpha,\beta < 1$ va a dar una densidad muy baja en los valores cercanos a 0.5 y muy alto en los valores cercanos a 0 y 1 que captaria justamente el comportamiento en este caso. Podemos plantear entonces una de tantas posibles distribuciones betas para este problema dada por $Beta(0.1,0.1)$
+
+```{r}
+plot_beta(0.1,0.1)
+```
+# Exercise 3.2
+
+> _(Tune your Beta prior: Take II)_ As in Exercise 3.1, tune an appropriate Beta(α,β) prior model for each situation below. 
+
+# a.
+
+```
+Your friend tells you “I think that I have a 80% chance of getting a full night of sleep tonight, and I am pretty certain.” When pressed further, they put their chances between 70% and 90%.
+```
+
+Necesitamos una media de 80 y un desvio de entre 70 y 90, es muy parecida a la primera consigna del ejercicio 3.1
+
+```{r}
+varianza_beta(0.8, 0.9)
+```
+Vemos que con un valor de aproximadamente 50 seria suficiente para tener la distribucion que queremos por lo cual calculamos el $\beta$ correspondiente a un $\alpha$ de 50, que seria `r parameter_relation(0.8, 50)` lo cual nos da una distribucion $Beta(50,12.5)$
+
+```{r}
+plot_beta(50, parameter_relation(0.8, 50))
+```
+
+## b.
+
+```
+A scientist has created a new test for a rare disease. They expect that it’s accurate 90% of the time with a variance of 0.08.
+```
+
+La resolucion es igual que en la segunda consigna del ejercicio anterior. Si la media es 0.9 sabemos que la relacion entre las medias es $\frac{1}{9}$, solamente es necesario que la varianza sea igual a 0.08 para lo cual usamos la formula
+
+$0.08 = \frac{\alpha\beta}{(\alpha+\beta)^2(\alpha+\beta+1)}$
+
+Dado que 
+
+$\beta=\frac{1}{9}\alpha$
+
+$0.08 = \frac{(\alpha)(\frac{1}{9}\alpha)}{(\alpha+\frac{1}{9}\alpha)^2(\alpha+\frac{1}{9}\alpha+1)}$
+
+
+## c.
+
+```
+Max loves to play the video game Animal Crossing. They tell you: “The probability that I play Animal Crossing in the morning is somewhere between 75% and 95%, but most likely around 85%.”
+```
+
+La media es de 0.85 pero en este caso no queremos incluir al 1 (100%) asi que hacemos el calculo normal de la varianza
+
+```{r}
+varianza_beta(0.85, 0.95)
+```
+
+Un valor $\alpha$ de 40 seria suficiente lo cual nos da un $\beta$ de `r parameter_relation(0.85, 40)` que podemos redondear en `r round(parameter_relation(0.85, 40), 1)`. De ahi nos queda una distribucion $Beta(40,7.1)$
+
+```{r}
+plot_beta(40, parameter_relation(0.85, 40))
+```
+
+## d.
+
+```
+The bakery in Easthampton, Massachusetts often runs out of croissants on Sundays. Ben guesses that by 10 a.m., there is a 30% chance they have run out, but is pretty unsure about that guess.
+```
+
+No tenemos un numero para estimar la varianza pero queremos una varianza significativamente grande. Sabemos que queremos una media de 0.3 con lo cual podriamos ver un valor muy bajo de $\alpha$ como puede ser el 2 y calcular el respectivo valor $\beta$ para obtener una distribucion con mucha varianza.
+
+```{r}
+plot_beta(2, parameter_relation(0.3, 2))
 ```
 
 
 # Exercise 3.3
 
-_(It’s OK to admit you don’t know)_ You want to specify a Beta prior for a situation in which you have no idea about some parameter $\pi$. You think $\pi$ is equally likely to be anywhere between 0 and 1. Specify and plot the appropriate Beta prior model.
+>_(It’s OK to admit you don’t know)_ You want to specify a Beta prior for a situation in which you have no idea about some parameter $\pi$. You think $\pi$ is equally likely to be anywhere between 0 and 1. Specify and plot the appropriate Beta prior model.
 
 ## a.
 
+```
 Specify and plot the appropriate Beta prior model.
+```
+
 
 ```{r}
 plot_beta(1, 1)
@@ -39,7 +331,9 @@ plot_beta(1, 1)
 
 ## b.
 
+```
 What is the mean of the Beta prior that you specified? Explain why that does or does not align with having no clue.
+```
 
 ```{r}
 #alpha/(alpha+beta)
@@ -48,7 +342,9 @@ What is the mean of the Beta prior that you specified? Explain why that does or 
 
 ## c.
 
+```
 What is the standard deviation of the Beta prior that you specified?
+```
 
 ```{r}
 (1*1)/(
@@ -104,11 +400,13 @@ _(Which Beta? Take II)_ Six Beta pdfs are plotted below. Match each to one of th
 
 # Exercise 3.6 
 
-_(Beta properties)_ Examine the properties of the Beta models in Exercise 3.4. 
+> _(Beta properties)_ Examine the properties of the Beta models in Exercise 3.4. 
 
 ## a. 
 
-> Which Beta model has the smallest mean? The biggest? Provide visual evidence and calculate the corresponding means.
+```
+Which Beta model has the smallest mean? The biggest? Provide visual evidence and calculate the corresponding means.
+```
 
 El modelo Beta(0.5,6) tiene la media mas chica de $\frac{\alpha}{\alpha + \beta}=\frac{0.5}{0.5+6}=0.07$
 
@@ -122,5 +420,348 @@ plot_beta(6,2, mean = T)
 
 ## b. 
 
-> Which Beta model has the smallest mode? The biggest? Provide visual evidence and calculate the corresponding modes.
+```
+Which Beta model has the smallest mode? The biggest? Provide visual evidence and calculate the corresponding modes.
+```
+
+Generamos una funcion de calculo de la moda 
+
+```{r}
+beta_moda <- function(alfa, beta){
+  (alfa-1)/(alfa+beta-2)
+}
+```
+
+Calculamos la moda para todas las distribuciones
+
+```{r}
+alfas <- c(0.5, 1, 2, 6, 6, 0.5)
+betas <- c(0.5, 1, 2, 6, 2, 6)
+beta_moda(alfas, betas)
+```
+La funcion de moda utilizada no esta definida para parametros menores a 1 por lo que ignoramos el ultimo valor y tenemos que la moda mas chica es la de las primeras distribuciones mientras que la mas grande es la de la distribucion $Beta(6,2)$.
+
+Para dar evidencia visual utilizamos una de las distribuciones con moda 0.5 y la anteultima distribucion con mayor moda
+
+```{r}
+plot_beta(2,2, mode = T)
+plot_beta(6,2, mode = T)
+```
+
+
+## c.
+
+```
+Which Beta model has the smallest standard deviation? The biggest? Provide visual evidence and calculate the corresponding standard deviations.
+```
+
+```{r}
+desviacion_beta <- function(alfa, beta){
+  sqrt(
+    (alfa*beta)/(
+      ((alfa+beta)^2) * (alfa+beta+1)
+    )
+  )
+}
+desviacion_beta(alfas, betas)
+```
+
+
+La desviacion mas chica es la del ultimo modelo $Beta(0.5,6)$ y la desviacion mas grande es la de la primera distribucion $Beta(0.5,0.5)$
+
+```{r}
+plot_beta(0.5,0.5)
+plot_beta(0.5,6)
+```
+
+# 3.7
+
+## a.
+
+
+# 3.8
+
+
+# 3.9
+
+>  _(Interpreting priors)_ What do you call a sweet carbonated drink: pop, soda, coke, or something else? Let π be the proportion of U.S. residents that prefer the term “pop.” Two different beverage salespeople from different regions of the country have different priors for π. The first salesperson works in North Dakota and specifies a Beta(8,2) prior. The second works in Louisiana and specifies a Beta(1,20) prior. 
+
+## a.
+
+```
+Calculate the prior mean, mode, standard deviation of π for both salespeople.
+```
+
+```{r}
+sales_nd <- c(8,2)
+sales_lo <- c(1,20)
+```
+
+La media del primer vendedor es `r sales_nd[1]/sum(sales_nd)` y la del segundo es `r sales_lo[1]/sum(sales_lo)`. La moda en un caso es `r beta_moda(sales_nd[1], sales_nd[2])` y en el otro caso es `r beta_moda(sales_lo[1], sales_lo[2])`. Por ultimo la desviacion para el primer vendedor es de `r desviacion_beta(sales_nd[1], sales_nd[2])` y la del segundo es `r desviacion_beta(sales_lo[1], sales_lo[2])`. 
+
+## b.
+
+```
+Plot the prior pdfs for both salespeople
+```
+
+```{r}
+plot_beta(8,2)
+plot_beta(1,20)
+```
+
+## c.
+
+```
+Compare, in words, the salespeople’s prior understandings about the proportion of U.S. residents that say “pop.”
+```
+
+# 3.10 
+
+> _(Different priors, different posteriors)_ Continuing Exercise 3.9, we poll 50 U.S. residents and 12 (24%) prefer the term “pop.” 
+
+## a. 
+
+```
+Specify the unique posterior model of π for both salespeople. We encourage you to construct these posteriors from scratch.
+```
+
+Tenemos dos priors. Uno dado por $Beta(8,2)$ y otro dado por $Beta(1,20)$. Siendo $y = 12$ la cantidad de personas que se encontraron que usan el termino __pop__ y $n = 50$ la cantidad de residentes totales que se encuestaron, la actualizacion bayesiana del prior estaria dada por la formula
+
+$Beta(\alpha + y, \beta + n - y)$ 
+
+Para nuestro caso esto daria dos formulas dado los dos priors que son
+
+$Beta(8 + 12, 2 + 50 - 12) = Beta(20, 40)$ 
+
+$Beta(1 + 12, 20 + 50 - 12) = Beta(13, 58)$
+
+## b.
+
+```
+Plot the prior pdf, likelihood function, and posterior pdf for both salespeople.
+```
+
+Para el vendedor de North Dakota el resultado es 
+
+```{r}
+plot_beta_binomial(8,2,12,50)
+```
+
+
+Para el vendedor de Louisiana el modelo posterior es 
+
+```{r}
+plot_beta_binomial(1, 20, 12, 50)
+```
+
+# 3.11
+
+> _(Regular bike ridership)_ A university wants to know what proportion of students are regular bike riders, π, so that they can install an appropriate number of bike racks. Since the university is in sunny Southern California, staff think that π has a mean of 1 in 4 students, and a mode of 5/22. 
+
+## a.
+
+```
+Specify and plot a Beta model that reflects the staff’s prior ideas about π.
+```
+
+Una media de 1 en 4 estudiantes es analogo a decir que hay un exito en 4 intentos lo cual es equivalente a decir que $\alpha = 1$ y que $\alpha+\beta=4$. Segun la formula de la media $\frac{\alpha}{\alpha+\beta}$ esto seria como decir $\frac{1}{4}$ con lo cual la media es $E(\pi)=0.25$. 
+
+Si sabemos que la media es de 0.25 significa la relacion entre los parametros es $\beta=3\alpha$. Tenemos otro dato que es el valor de la moda $\frac{5}{22}$. Segun la formula de la moda esto seria igual que decir
+
+$\frac{5}{22}=\frac{\alpha-1}{\alpha+\beta-2}$
+
+Pero sabemos que valor toma $\beta$ en relacion con $\alpha$ por lo cual podemos reemplazar para quedarnos con
+
+$\frac{5}{22}=\frac{\alpha-1}{\alpha+3\alpha-2}$
+
+$\frac{5}{22}=\frac{\alpha-1}{4\alpha-2}$
+
+De ahi operamos para resolver la incognita
+
+$\frac{5}{22}(4\alpha-2)=\frac{\alpha-1}{4\alpha-2}(4\alpha-2)$
+
+$\frac{(20\alpha-10)22}{22}=(\alpha-1)22$
+
+$20\alpha-10=22\alpha-22$
+
+$-10+22=22\alpha-20\alpha$
+
+$12=2\alpha$
+
+$6=\alpha$
+
+Finalmente podemos comprobar el resultado
+
+```{r}
+summarize_beta(6, parameter_relation(0.25, 6))
+```
+
+## b.
+
+```
+Among 50 surveyed students, 15 are regular bike riders. What is the posterior model for π?
+```
+
+El modelo de la posterior seria $Beta(6 + 15, 18 + 50 - 15) = Beta(21,53)$
+
+## c.
+
+```
+What is the mean, mode, and standard deviation of the posterior model?
+```
+
+```{r}
+summarize_beta(6 + 15, 18 + 50 - 15)
+```
+
+## d.
+
+```
+Does the posterior model more closely reflect the prior information or the data? Explain your reasoning.
+```
+
+# Exercise 3.12
+
+> A 2017 Pew Research survey found that 10.2% of LGBT adults in the U.S. were married to a same-sex spouse.29 Now it’s the 2020s, and Bayard guesses that π, the percent of LGBT adults in the U.S. who are married to a same-sex spouse, has most likely increased to about 15% but could reasonably range from 10% to 25%. 
+
+
+## a.
+
+```
+Identify and plot a Beta model that reflects Bayard’s prior ideas about pi.
+```
+
+```{r}
+varianza_beta(0.15, 0.25)
+```
+
+Con un valor de 20 seria suficiente para lograr un prior con esa variabilidad. Si vamos con ese valor tenemos un $\alpha$ de 20 y un $\beta$ redondeado de `r round(parameter_relation(0.15,20))` lo cual daria una distribucion $Beta(20,113)$. Podemos ahora graficarla y tambien agregarle dos lineas representando los dos umbrales del rango de valores que esperamos.
+
+```{r}
+plot_beta(20,113) +
+  geom_vline(
+    aes(xintercept = c(0.1,0.25)), linetype = 'dashed'
+    )
+```
+
+Sin embargo el umbral inferior de la varianza que queremos no esta bien representado podemos repetir entonces el calculo de la varianza para el rango inferior.
+
+```{r}
+varianza_beta(0.15, 0.1)
+```
+
+Necesitamos valores mas cercanos al 30 o al 40 incluso si queremos que ese umbral este bien representado. Vamos a probar con un valor $\alpha$ de 30 que tiene asociado un valor $\beta$ de `r parameter_relation(0.15,30)` lo cual nos da una distribucion $Beta(30,170)$.
+
+```{r}
+plot_beta(30,170) +
+  geom_vline(
+    aes(xintercept = c(0.1,0.25)), linetype = 'dashed'
+    )
+```
+En este caso la distribucion pareceria estar representando mejor la variabilidad del prior. 
+
+## b.
+
+```
+Bayard wants to update his prior, so he randomly selects 90 US LGBT adults and 30 of them are married to a same-sex partner. What is the posterior model for pi?
+```
+
+El modelo actualizado seria $Beta(30+30, 170 + 90 - 30)=Beta(60, 230)$
+
+```{r}
+plot_beta_binomial(30, 170, 30, 90)
+```
+
+## c.
+
+```
+Calculate the posterior mean, mode, and standard deviation of pi.
+```
+
+```{r}
+summarize_beta(60, 230)
+```
+
+## d.
+
+```
+Does the posterior model more closely reflect the prior information or the data? Explain your reasoning
+```
+
+# Exercise 3.13
+
+>  A September 2016 Pew Research survey found that 30% of U.S. adults are aware that they know someone who is transgender.30 It is now the 2020s, and Sylvia believes that the current percent of people who know someone who is transgender, π, has increased to somewhere between 35% and 60%. 
+
+## a.
+
+```
+Identify and plot a Beta model that reflects Sylvia’s prior ideas about pi
+```
+
+No tenemos ninguna media definida pero queremos que los datos se encuentren entre el 35% y el 60%, eso implica que necesitamos que el el valor de $\beta$ sea mas grande que el valor de $\alpha$. Teniendo esa nocion podemos realizar un grafico donde expresemos en el eje y la probabilidad acumulada de estar entre 35% y 60% mientras que en el eje x representamos los parametros de la distribucion. 
+
+Para esto conviene dejar fijo el parametro en un numero arbitrario de $\beta$ que sea relativamente grande (ej. 10) y modificamos el alfa multiplicandolo por una secuencia incremental de numeros.
+
+```{r}
+valor_beta <- 10
+plot(
+  x = valor_beta*seq(0.01, 5, 0.001),
+  y = pbeta(0.6, valor_beta*seq(0.01, 5, 0.001), valor_beta) - pbeta(0.35, valor_beta*seq(0.01, 5, 0.001), valor_beta),
+  type = 'l',
+  xlab = 'Alfa',
+  ylim = c(0,1)
+)
+```
+Vemos que para los valores de $\beta$ cercanos a 10 tenemos alrededor de un 70% de la distribucion por debajo de 0.6 y por arriba de 0.35 que seria lo que estamos buscando. Mas concretamente podemos ver cual es el valor para el cual se maximiza esta probabilidad.
+
+```{r}
+valor_beta*seq(0.01,5, 0.001)[
+which.max(pbeta(0.6, valor_beta*seq(0.01, 5, 0.001), valor_beta) - pbeta(0.35, valor_beta*seq(0.01, 5, 0.001), valor_beta))
+]
+```
+El numero que maximiza este valor entonces es el 9.5 y si lo graficaramos en una distribucion del tipo $Beta(9.5,10)$ nos daria algo de esta forma.
+
+```{r}
+plot_beta(9.5, 10) +
+  geom_vline(aes(xintercept = c(0.35,0.6)), linetype = 'dashed')
+```
+
+Lo que podriamos hacer ahora entonces es calcular el valor maximo de este rango de probabilidades para distintos valores de $\beta$ explorando siempre el rango de valores $\alpha$ multiplicando a ese $\beta$ por distintos numeros como hicimos anteriormente.
+
+```{r}
+plot(
+  x = seq(1,50, 1), #rango de valores beta
+  y = sapply(
+  seq(1,50, 1),  # variamos el valor de beta
+  function(x){ #Para cada valor de beta calculamos
+    max( #El maximo que alcanza el rango de probabilidades entre 35% y 60%
+      pbeta(0.6, x*seq(0.01, 5, 0.001), x) - pbeta(0.35, x*seq(0.01, 5, 0.001), x)
+      )
+    }
+  ),
+  type = 'l',
+  xlab = 'Beta', ylab = 'Probabilidad'
+)
+```
+
+Con este grafico queda demostrado el rango de probabilidades de esos valores crece con el valor de $\beta$ y un valor relativamente optimo seria entre 20 y 30 ya que estariamos captando mas del 80% de la distribucion. Podemos tomar 25 como punto intermedio.
+
+Nos faltaria determinar el valor optimo de $\alpha$ para un $\beta$ de 25 pero para esto repetimos el procedimiento que hicimos al principio.
+
+```{r}
+#Definimos la secuencia de valores de alfa
+25*seq(0.01,5,0.001)[ #Seleccionamos de esta secuencia el valor maximo
+  which.max(
+    pbeta(0.6, 25*seq(0.01,5,0.001), 25) - pbeta(0.35, 25*seq(0.01,5,0.001), 25)
+  )
+]
+```
+
+Graficamos ahora la distribucion $Beta(23.025,25)$ y obtenemos lo que queriamos
+
+```{r}
+plot_beta(23.025, 25) +
+  geom_vline(aes(xintercept = c(0.35,0.6)), linetype = 'dashed')
+```
 
