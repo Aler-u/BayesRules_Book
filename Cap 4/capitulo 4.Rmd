@@ -1,0 +1,747 @@
+---
+title: "Capitulo 4"
+subtitle: "Balance and Sequentiality in Bayesian Analyses"
+output: html_notebook
+---
+
+```{r}
+library(bayesrules)
+library(tidyverse)
+```
+
+
+# 4.9.1 Review exercises
+
+## Exercise 4.1 (Match the prior to the description)
+
+> Five different prior models for π are listed below. Label each with one of these descriptors: somewhat favoring π<0.5, strongly favoring π<0.5, centering π on 0.5, somewhat favoring π>0.5, strongly favoring π>0.5. 
+
+* Somewhat favoring n < 0.5 = Beta(1,3)
+* Strongly favoring n < 0.5 = Beta(1, 10)
+* Centering on n 0.5 = Beta (1.8, 1.8)
+* Somewhat favoring n > 0.5 = Beta(3,2)
+* Strongly favoring n > 0.5 = Beta(17,2)
+
+## Exercise 4.2 (Match the plot to the code)
+
+> Which arguments to the plot_beta_binomial() function generated the plot below?
+
+e. `alpha = 3, beta = 8, y = 2, n = 4` 
+
+## Exercise 4.3 (Choice of prior: gingko tree leaf drop) 
+
+> A ginkgo tree can grow into a majestic monument to the wonders of the natural world. One of the most notable things about ginkgo trees is that they shed all of their leaves at the same time, usually after the first frost. Randi thinks that the ginkgo tree in her local arboretum will drop all of its leaves next Monday. She asks 5 of her friends what they think about the probability (π) that this will happen. Identify some reasonable Beta priors to convey each of these beliefs.
+
+a. Beta(1, 10)
+b. Beta(1,1)
+c. Beta(10, 1)
+d. Beta(5, 2)
+e. Beta(2, 5)
+
+# 4.9.2 Practice: Different priors, different posteriors
+
+For all exercises in this section, consider the following story. The local ice cream shop is open until it runs out of ice cream for the day. It’s 2 p.m. and Chad wants to pick up an ice cream cone. He asks his coworkers about the chance (π) that the shop is still open. Their Beta priors for π are below:
+
+```{r}
+knitr::kable(
+  data.frame(
+    coworker = c('Kimya', 'Fernando', 'Ciara', 'Taylor'),
+    prior = c('Beta(1,2)', 'Beta(0.5,1)', 'Beta(3,10)', 'Beta(2, 0.1)')
+  )
+)
+```
+
+## Exercise 4.4 (Choice of prior) 
+
+>Visualize and summarize (in words) each coworker’s prior understanding of Chad’s chances to satisfy his ice cream craving. 
+
+### Kimya prior
+
+```{r}
+plot_beta(1, 2)
+```
+
+Piensa que es poco probable que este abierto aunque no esta tan segura.
+
+### Fernando prior
+
+```{r}
+plot_beta(0.5, 1)
+```
+
+
+Cree que es poco probable que este abierto pero esta bastante seguro, mas que Kimya.
+
+### Ciara
+
+```{r}
+plot_beta(3,10)
+```
+
+Cree que es poco probable que este abierto pero no lo ve tan improbable como Fernando o Kimya y esta bastante segura que hay menos de un 50% de chances que este abierto. 
+
+### Taylor prior
+
+```{r}
+plot_beta(2, 0.1)
+```
+
+Piensa que es muy probable que este abierto y esta muy segura.
+
+## Exercise 4.5 (Simulating the posterior)
+
+> Chad peruses the shop’s website. On 3 of the past 7 days, they were still open at 2 p.m.. Complete the following for each of Chad’s coworkers: 
+>
+> - simulate their posterior model;
+> - create a histogram for the simulated posterior; and
+> - use the simulation to approximate the posterior mean value of π.
+
+En lineas generales primero generamos una gran cantidad de valores de la distribucion prior beta que nos van a dar la probabilidad de que este abierto. Despues vemos la funcion de likelihood para 7 dias dado el parametro de probabilidad del prior. Contabilizamos cuantas veces ocurre que esten abiertos 3 de 7 dias. 
+
+Creamos una funcion que haga exactamente eso y la aplicamos a cada caso.
+
+```{r}
+icecream_posterior <- function(alfa_prior, beta_prior, exitos, intentos){
+  prior_sim <- rbeta(10000, alfa_prior, beta_prior)
+  lieklihood_sim <- rbinom(10000, intentos, prior_sim)
+  posterior_sim <- prior_sim[lieklihood_sim == exitos]
+  return(posterior_sim)
+}
+```
+
+Primero definimos el prior de cada sujeto.
+
+```{r}
+prior_icecream <- data.frame(
+  sujeto = c('Kimya', 'Fernando', 'Ciara', 'Taylor'),
+  alfa = c(1, 0.5, 3, 2),
+  beta = c(2, 1, 10, 0.1)
+)
+knitr::kable(prior_icecream)
+```
+
+Despues iteramos por cada sujeto aplicando la funcion que creamos antes y pasandole como argumento los parametros de prior de cada sujeto.
+
+```{r}
+resultado_icecream_posterior <- pmap(
+  list(prior_icecream$alfa, prior_icecream$beta, 3, 7),
+  icecream_posterior   
+  )
+```
+
+Ahora unimos las listas en un solo dataframe, para eso unimos todos los valores de la simulacion que estan como elementos de una lista y los asignamos a una columna del dataframe resultante de nombre "parametro" y generamos otra columna con el nombre "sujeto" que identifica de que sujeto provienen los datos. Para esta ultima columna repetimos el nombre de cada sujeto segun la cantidad de elementos que haya en la lista con la misma posicion.
+
+```{r}
+icecream_dataframe <- data.frame(
+  parametro = unlist(resultado_icecream_posterior),
+  sujeto = rep(
+  prior_icecream$sujeto,
+  unlist(lapply(resultado_icecream_posterior, length)) #Contamos cuantos elementos hay en cada elemento de la lista
+  )
+)
+sample_n(icecream_dataframe, 10)
+```
+
+Finalmente graficamos un histograma de la densidad de todas las distribuciones posteriores marcando cada sujeto con un color distinto. Asimismo graficamos las medias de cada distribucion como una linea punteada con el mismo color que cada sujeto.
+
+```{r}
+ggplot(data = icecream_dataframe, aes(x = parametro, fill = sujeto)) +
+  geom_histogram(aes(y = ..density..), alpha = 0.5, ) +
+  geom_vline(
+    data = icecream_dataframe %>%
+  group_by(sujeto) %>%
+  summarize(media = mean(parametro)),
+  aes(xintercept = media, color = sujeto),
+  linetype = 'dashed', size = 1
+  )
+```
+
+## Exercise 4.6 (Identifying the posterior)
+
+>  Complete the following for each of Chad’s coworkers: 
+>
+> * identify the exact posterior model of π;
+* calculate the exact posterior mean of π; and
+* compare these to the simulation results in the previous exercise.
+
+Aprovechamos el dataframe que define los priors de cada sujeto sabiendo que tenemos 3 exitos en 7 intentos.
+
+```{r}
+icecream_posterior_exacta <- prior_icecream %>% mutate(
+  alfa_posterior = alfa + 3,
+  beta_posterior = beta  + 7 - 3
+)
+icecream_posterior_exacta
+```
+
+Para calcular la media usamos la formula
+
+$media= \frac{\alpha}{\alpha + \beta}$
+
+```{r}
+icecream_posterior_exacta <- icecream_posterior_exacta %>%
+  mutate(media = alfa_posterior/(alfa_posterior+beta_posterior))
+icecream_posterior_exacta
+```
+
+Finalmente comparamos el calculo exacto con el de la simulacion.
+
+```{r}
+media_simulacion <- icecream_dataframe %>% group_by(sujeto) %>% summarize(media = mean(parametro)) %>% .$media
+icecream_posterior_exacta$media - media_simulacion
+```
+# 4.9.3 Practice: Balancing the data & prior
+
+## Exercise 4.7 (What dominates the posterior?)
+
+> In each situation below you will be given a Beta prior for π and some Binomial trial data. For each scenario, identify which of the following is true: the prior has more influence on the posterior, the data has more influence on the posterior, or the posterior is an equal compromise between the data and the prior.
+
+Vamos a categorizar las respuesta en 3. 
+
+* Prior influence = the prior has more influence on the posterior
+* Data influence = the data has more influence on the posterior
+* Equal influence = the posterior is an equal compromise between the data and the prior
+
+a. Data influence
+b. Prior influence
+c. Equal influence
+d. Equal influence
+e. Data influence
+
+## Exercise 4.8 (Visualizing the evolution)
+
+> For each scenario in Exercise 4.7, plot and compare the prior pdf, scaled likelihood function, and posterior pdf for π.
+
+### Escenario a
+
+```{r}
+plot_beta_binomial(1,4,8,10)
+```
+
+### Escenario b
+
+```{r}
+plot_beta_binomial(20,3,0,1)
+```
+
+### Escenario c
+
+```{r}
+plot_beta_binomial(4,2,1,3)
+```
+
+### Escenario d
+
+```{r}
+plot_beta_binomial(3, 10, 10, 13)
+```
+
+### Escenario e
+
+```{r}
+plot_beta_binomial(20, 2, 10, 200)
+```
+
+## Exercise 4.9 (Different data: more or less sure)
+
+> Let π denote the proportion of people that prefer dogs to cats. Suppose you express your prior understanding of π by a Beta(7, 2) model.
+
+Para la mayoria de los casos vamos a asumir que las preguntas no estan buscando que generemos las respuestas en base a analisis formales.
+ 
+### a.
+
+> According to your prior, what are reasonable values for π?
+
+Podemos pensar la distribucion como 7 exitos y 2 fracasos en 9 intentos. Por tanto tendriamos un valor promedio que ronda el 0.6/0.7 y la mayoria de la distribucion estaria por arriba de 0.5 y por debajo de 0.9 
+
+### b.
+
+> If you observe a survey in which Y=19 of n=20 people prefer dogs, how would that change your understanding of π? Comment on both the evolution in your mean understanding and your level of certainty about π.
+
+A priori pensabamos que el parametro era superior a 0.5 y los datos indican que el porcentaje de exito es muy grande. Esto implica que la media de la distribucion posterior es mayor a la media de la distribucion prior y la incerteza en la estimacion es mas baja. 
+
+### c.
+
+> If instead, you observe that only Y=1 of n=20 people prefer dogs, how would that change your understanding about π?
+
+Los datos apoyan un valor del parametro de interes mucho menor que el del prior. Dado que hay menos incerteza a partir de los datos a comparacion del prior podemos concluir que la posterior del parametro va a estar mucho mas cerca de los datos y va a por tanto a bajar el valor esperado del parametro.
+
+### d. 
+
+> If instead, you observe that Y=10 of n=20 people prefer dogs, how would that change your understanding about π?
+
+Los datos son mayormente compatibles con un valor del parametro alrededor de 0.5 con lo cual dado que el prior asumia valores del parametro en general por arriba de 0.5 la posterior deberia acercarse al valor de 0.5 pero no encajaria exactamente con el likelihood por lo que tendria una ligera inclinacion hacia valores superiores a 0.5 del parametro. 
+
+## Exercise 4.10 (What was the data?)
+
+>  In each situation below we give you a Beta prior and a Beta posterior. Further, we tell you that the data is Binomial, but we don’t tell you the observed number of trials n or successes y in those trials. For each situation, identify n and y, and then utilize plot_beta_binomial() to sketch the prior pdf, scaled likelihood function, and posterior pdf. 
+
+Para realizar los calculos generamos una funcion que tome como input el alfa y beta del prior y de la posterior y entregue como output la cantidad de exitos y la cantidad total de intentos.
+
+```{r}
+binom_from_beta_fun <- function(alpha_prior, beta_prior, alpha_posterior, beta_posterior){
+  y <- alpha_posterior - alpha_prior
+  n <- beta_posterior + y - beta_prior
+  return(c(y,n))
+}
+```
+
+
+### a.
+
+Prior: Beta(0.5, 0.5)
+Posterior: Beta(8.5, 2.5)
+
+```{r}
+ej.4.10.a <- binom_from_beta_fun(0.5, 0.5, 8.5, 2.5)
+ej.4.10.a
+```
+Graficamos
+
+```{r}
+plot_beta_binomial(0.5, 0.5, 
+                   ej.4.10.a[1],
+                   ej.4.10.a[2])
+```
+
+
+### b.
+
+Prior: Beta(0.5, 0.5)
+Posterior: Beta(3.5, 10.5)
+
+```{r}
+ej.4.10.b <- binom_from_beta_fun(0.5,0.5, 3.5, 10.5)
+ej.4.10.b
+```
+
+Graficamos
+
+```{r}
+plot_beta_binomial(0.5,0.5,
+                   ej.4.10.b[1],
+                   ej.4.10.b[2])
+```
+
+### c.
+
+Prior: Beta(10,1)
+Posterior: Beta(12,15)
+
+```{r}
+ej.4.10.c <- binom_from_beta_fun(10,1,12,15)
+ej.4.10.c
+```
+
+Graficamos
+
+```{r}
+plot_beta_binomial(10, 1,
+                   ej.4.10.c[1],
+                   ej.4.10.c[2])
+```
+
+### d.
+
+Prior: Beta(8,3)
+Posterior: Beta(15,6)
+
+```{r}
+ej.4.10.d <- binom_from_beta_fun(8,3,15,6)
+ej.4.10.d
+```
+
+Graficamos
+
+```{r}
+plot_beta_binomial(8,3,
+                   ej.4.10.d[1],
+                   ej.4.10.d[2])
+```
+
+### e.
+
+Prior: Beta(2,2)
+Posterior: Beta(5,5)
+
+```{r}
+ej.4.10.e <- binom_from_beta_fun(2,2,5,5)
+ej.4.10.e
+```
+
+Graficamos
+
+```{r}
+plot_beta_binomial(2,2,
+                   ej.4.10.e[1],
+                   ej.4.10.e[2])
+```
+
+### f.
+
+Prior: Beta(1,1)
+Posterior: Beta(30,3)
+
+```{r}
+ej.4.10.f <- binom_from_beta_fun(1,1,30,3)
+ej.4.10.f
+```
+Graficamos
+
+```{r}
+plot_beta_binomial(1,1,
+                   ej.4.10.f[1],
+                   ej.4.10.f[2])
+```
+
+## Exercise 4.11 (Different data, uninformative prior)
+
+>  In each situation below we have the same prior on the probability of a success, π∼Beta(1,1), but different data. Identify the corresponding posterior model and utilize plot_beta_binomial() to sketch the prior pdf, likelihood function, and posterior pdf. 
+
+Para automatizar las cosas un poco creamos una funcion que calcule la posterior a partir del prior y los datos. La funcion tiene como input los parametros de la distribucion beta prior y los datos de la cantidad de exitos y la cantidad de intentos.
+
+```{r}
+posterior_beta_fun <- function(alpha_prior, beta_prior, datos_y, datos_n){
+  alpha_posterior <- alpha_prior + datos_y
+  beta_posterior <- beta_prior + datos_n - datos_y
+  return(
+    c(alpha_posterior, beta_posterior)
+  )
+}
+```
+
+Posteriormente generamos un vector para representar los datos *Y* y _n_
+
+```{r}
+ej.4.11.y <-  c(10,0,100,20,234)
+ej.4.11.n <- c(13,1,130,120,468)
+```
+
+Posteriormente aplicamos la funcion sobre todos los valores.
+
+```{r}
+ej.4.11.resultado <- pmap(
+  list(1,1,ej.4.11.y, ej.4.11.n),
+  posterior_beta_fun
+)
+#Transformar en dataframe
+ej.4.11.df <- data.frame(
+  matrix(unlist(ej.4.11.resultado), 5,2, byrow = T)
+)
+colnames(ej.4.11.df) <- c('alpha','beta')
+ej.4.11.df
+```
+
+Finalmente aplicamos la funcion para graficar sobre los valores iniciales y los calculados
+
+```{r}
+pmap(
+  list(1,1,ej.4.11.y,ej.4.11.n),
+  plot_beta_binomial
+)
+```
+
+## Exercise 4.12 (Different data, informative prior)
+
+> Repeat Exercise 4.11, this time assuming a π∼Beta(10,2) prior. 
+
+Facilmente podemos adaptar el codigo anterior cambiando unicamente los parametros que le pasamos a la funcion.
+
+```{r}
+pmap(
+  list(10,2,ej.4.11.y, ej.4.11.n),
+  plot_beta_binomial
+)
+```
+
+## Exercise 4.13 (Bayesian bummer)
+
+> Bayesian methods are great! But, like anything, we can screw it up. Suppose a politician specifies their prior understanding about their approval rating, π, by: π∼Unif(0.5,1) with pdf f(π)=2 when 0.5≤π<1, and f(π)=0 when 0<π<0.5.
+
+## Exercise 4.14 (Challenge: posterior mode)
+
+### a.
+
+> In the Beta-Binomial setting, show that we can write the posterior mode of π as the weighted average of the prior mode and observed sample success rate:
+
+### b
+
+> To what value does the posterior mode converge as our sample size n increases? Support your answer with evidence.
+
+
+## Exercise 4.15 (One at a time)
+
+> Let π be the probability of success for some event of interest. You place a Beta(2, 3) prior on π, and are really impatient. Sequentially update your posterior for π with each new observation below. 
+
+### a.
+
+> First observation: Success
+
+Beta(3, 3)
+
+### b.
+
+> Second observation: Success
+
+Beta(4, 3)
+
+### c.
+
+> Third observation: Failure
+
+Beta(4, 4)
+
+### d.
+
+> Fourth observation: Success
+
+Beta(5, 4)
+
+## Exercise 4.16 (Five at a time)
+
+>  Let π be the probability of success for some event of interest. You place a Beta(2, 3) prior on π, and are impatient, but you have been working on that aspect of your personality. So you sequentially update your posterior model of π after every five (!) new observations. For each set of five new observations, report the updated posterior model for π. 
+
+### a.
+
+> First set of observations: 3 successes
+
+Beta(5, 5)
+
+
+### b.
+
+> Second set of observations: 1 success
+
+Beta(6, 9)
+
+
+### c.
+
+> Third set of observations: 1 success
+
+Beta(7, 13)
+
+### d.
+
+> Fourth set of observations: 2 successes
+
+Beta(9, 16)
+
+## Exercise 4.17 (Different data, different posteriors)
+
+> A shoe company develops a new internet ad for their latest sneaker. Three employees share the same Beta(4, 3) prior model for π, the probability that a user will click on the ad when shown. However, the employees run three different studies, thus each has access to different data. The first employee tests the ad on 1 person – they do not click on the ad. The second tests 10 people, 3 of whom click on the ad. The third tests 100 people, 20 of whom click on the ad. 
+
+### a.
+
+> Sketch the prior pdf using plot_beta(). Describe the employees’ prior understanding of the chance that a user will click on the ad.
+
+```{r}
+plot_beta(4, 3)
+```
+
+La media esta cercana al 0.5 es decir que las personas tienen un 50% de chances de hacer click en el anuncio con una ligera asimetria negativa es decir que hay una probabilidad ligeramente mayor a 0.5 de clikear el anuncio. dicho de otra manera hay una mayor proporcion de la distribucion por encima del valor 0.5
+
+### b.
+
+> Specify the unique posterior model of π for each of the three employees. We encourage you to construct these posteriors “from scratch,” i.e., without relying on the Beta-Binomial posterior formula.
+
+Para todos los empleados el modelo Beta lo podemos especificar como 
+
+$prior = f(\pi)= \frac{\Gamma(4 + 3)}{\Gamma(4)\Gamma(3)} \pi^{4-1}(1-\pi)^{3-1} = Beta(4,3)$
+
+#### Primer empleado
+
+Para el primer empleado la funcion de likelihood se define como
+
+$likelihood = L(\pi|y=0) =  \binom{1}{0}\pi^0(1-\pi)^{1-0}$
+
+Condensamos todo dentro del calculo de la posterior
+
+$posterior \propto prior.likelihood$
+
+$posterior = f(\pi|y=0) \propto \frac{\Gamma(7)}{\Gamma(4)\Gamma(3)} \pi^{3}(1-\pi)^2 . \binom{1}{0} \pi^0 (1-\pi)^1$
+
+El termino de $(1-\pi)$ queda con un exponente sumado de 3, $(1-\pi)^3$. El termino de $\pi$ tambien queda con un exponente de 3, $\pi^3$, porque se le sumaria 0 o porque podriamos prescindir directamente del termino $\pi^0=1$.
+Por tanto hasta ahora tenemos por un lado $\left[ \frac{\Gamma(7)}{\Gamma(4)\Gamma(3)}.\binom{1}{0} \right]$ y por el otro lado $\pi^3(1-\pi)^3$.
+
+Ese primer termino no depende de $\pi$ por lo que independientemente del valor que tome nuestro parametro de interes va a valer siempre lo mismo y al ser una constante podemos prescindir de el. En definitiva entonces nos queda
+
+$posterior \propto \pi^3(1-\pi)^3 = Beta(4,4)$
+
+#### Segundo empleado
+
+Para este empleado vamos a simplificar un poco mas el proceso. 
+
+La funcion de likelihood en este caso es 
+
+$likelihood = L(\pi|y=3) = \binom{10}{3} \pi^3(1-\pi)^7$
+
+Cuando combinamos para calcular la posterior tenemos por un lado $\pi^{3+3}=\pi^6$ y por el otro lado $(1-\pi)^{7+2}=(1-\pi)^9$. El modelo final entonces es $Beta(7,10)$. 
+
+#### Tercer empleado
+
+Para el tercer empleado la funcion de likelihood es $L(\pi|y=20) = \binom{100}{20} \pi^{20}(1-\pi)^{80}$. Cuando unimos ambos en la posterior nos queda un termino $\pi^{20+3} = \pi^{23}$ y el otro termino nos queda $(1-\pi)^{80+2} = (1-\pi)^{82}$ lo que da una distribucion $Beta(23,82)$.
+
+
+### c.
+
+> Plot the prior pdf, likelihood function, and posterior pdf for each employee.
+
+```{r}
+ggpubr::ggarrange(
+ bayesrules::plot_beta_binomial(alpha = 4, beta = 3, y = 0, n = 1) + ggplot2::labs(title = 'Primer empleado'),
+ bayesrules::plot_beta_binomial(alpha = 4, beta = 3, y = 3, n = 10) + ggplot2::labs(title = 'Segundo empleado'),
+ bayesrules::plot_beta_binomial(alpha = 4, beta = 3, y = 20, n = 100) + ggplot2::labs(title = 'Tercer empleado')
+)
+```
+
+### d.
+
+> Summarize and compare the employees’ posterior models of {pi}
+
+Primero hacemos un resumen grafico para comparar
+
+```{r}
+library(ggplot2)
+ggplot() +
+  stat_function(fun = dbeta, args = list(shape1 = 4, shape2 = 4), color = 'green') + #Primer empleado
+  stat_function(fun = dbeta, args = list(shape1 = 7, shape2 = 10), color = 'red') + #Segundo empleado
+  stat_function(fun = dbeta, args = list(shape1 = 23, shape2 = 82), color = 'blue') #Tercer empleado
+```
+
+Despues hacemos un resumen numerico
+
+```{r}
+library(dplyr)
+rbind( #Unimos todos los resumenes en un solo dataframe
+ bayesrules::summarize_beta_binomial(alpha = 4, beta = 3, y = 0, n = 1),
+ bayesrules::summarize_beta_binomial(alpha = 4, beta = 3, y = 3, n = 10),
+ bayesrules::summarize_beta_binomial(alpha = 4, beta = 3, y = 20, n = 100)
+) %>% filter(model == 'posterior') %>% #Nos quedamos unicamente con los resumenes de la posterior
+  select(mean:sd) %>% #Extraemos las columnas relevantes (las que tienen las medidas)
+  mutate(empleado = c('Primero','Segundo','Tercero')) #Nueva columna para identificar de que empleado viene la posterior
+```
+
+
+## Exercise 4.18 (A sequential employee)
+
+>  The shoe company described in Exercise 4.17 brings in a fourth employee. They start with the same Beta(4, 3) prior for {pi} as the first three employees but, not wanting to re-create work, don’t collect their own data. Instead, in their first day on the job, the new employee convinces the first employee to share their data. On the second day they get access to the second employee’s data and on the third day they get access to the third employee’s data. 
+
+### a.
+
+> Suppose the new employee updates their posterior model of {pi} at the end of each day. What’s their posterior at the end of day one? At the end of day two? At the end of day three?
+
+Al final del primer dia el modelo de la posterior de este cuarto empleado va a ser igual al del primer empleado $posterior \propto \pi^3(1-\pi)^3 = Beta(4,4)$. 
+En el segundo dia el prior se modifica y en lugar de ser $Beta(4,3)$ es $Beta(4,4)$. Por tanto la actualizacion ahora con los nuevos datos va a ser $\pi^{3+3} = \pi^6$ y $(1-\pi)^{3+7} = (1-\pi)^{10}$. El modelo final entonces para el segundo dia es $Beta(6,10)$. 
+En el ultimo dia esta posterior pasa a ser el prior por lo que ahora la actualizacion con los nuevos datos pasa a ser $Beta(6+20,10+80) = Beta(26,90)$. 
+
+### b.
+
+> Sketch the new employee’s prior and three (sequential) posteriors. In words, describe how their understanding of {pi} evolved over their first three days on the job.
+
+```{r}
+ggplot() +
+  stat_function(fun = dbeta, args = list(shape1 = 4, shape2 = 3), color = 'gold1') + #Prior
+  stat_function(fun = dbeta, args = list(shape1 = 4, shape2 = 4), color = 'chartreuse1') + #Primer dia
+  stat_function(fun = dbeta, args = list(shape1 = 6, shape2 = 10), color = 'chartreuse2') + #Segundo dia
+  stat_function(fun = dbeta, args = list(shape1 = 26, shape2 = 90), color = 'chartreuse3') #Tercer dia
+```
+ 
+ La posterior despues del primer dia es muy parecido a la distribucion del prior dada la poca cantidad de datos disponibles. En el segundo dia la posterior se mueve notablemente mas lejos del prior anterior (la posterior del primer dia) y sus medidas de tendencia central se alejan del 0.5 mientras que el tercer dia la varianza de la distribucion se reduce notablemente y se aleja todavia mas hacia la izquierda del prior (la posterior del segundo dia) con medidas de tendencia central por debajo de 0.25. 
+ 
+ ### c.
+
+Si la posterior no se hubiera actualizado hasta el ultimo dia el prior es igual que antes 
+
+$prior = f(\pi)= \frac{\Gamma(4 + 3)}{\Gamma(4)\Gamma(3)} \pi^{4-1}(1-\pi)^{3-1} = Beta(4,3)$
+
+No obstante la funcion de likelihood cambia $L(\pi|y=23) = \binom{111}{23} \pi^{23}(1-\pi)^{88}$. 
+
+Cuando integramos esta informacion para calcular la posterior nos queda $\pi^{3+23} = \pi^{26}$ y $(1-\pi)^{88+2} = (1-\pi)^{90}$. Al final la posterior queda definida como $Beta(26,90)$ que es igual a la posterior que se obtuvo en la parte (a). 
+
+
+## Exercise 4.19 (Bechdel test)
+
+>  In this exercise we’ll analyze {pi}, the proportion of films that pass the Bechdel test, using the bechdel data. For each scenario below, specify the posterior model of {pi}, and calculate the posterior mean and mode.  
+
+En primer lugar cargamos el dataframe que vamos a usar
+
+```{r}
+ej4.19_df <- bayesrules::bechdel
+```
+
+
+### a.
+
+> John has a flat Beta(1, 1) prior and analyzes movies from the year 1980.
+
+Calculamos cuantas peliculas se analizan en total y cuantas pasan el test.
+
+```{r}
+ej4.19_df %>% filter(year == 1980) %>% count(binary)
+```
+
+Hay 14 peliculas en total de las cuales 4 pasan el test de Bechdel. Ya con esta informacion podemos calcular el modelo de la posterior
+
+```{r}
+bayesrules::summarize_beta_binomial(alpha = 1, beta = 1, y = 4, n = 14)
+```
+
+### b.
+
+> The next day, John analyzes movies from the year 1990, while building off their analysis from the previous day.
+
+El nuevo prior ahora es $Beta(5,11)$.
+
+Revisamos de nuevo los datos para ver la cantidad de aciertos.
+
+```{r}
+ej4.19_df %>% filter(year == 1990) %>% count(binary)
+```
+
+Hay 6 peliculas que pasan el test de las 15 en total. 
+
+```{r}
+bayesrules::summarize_beta_binomial(alpha = 5, beta = 11, y = 6, n = 15)
+```
+
+### c.
+
+> The third day, John analyzes movies from the year 2000, while again building off of their analyses from the previous two days.
+
+El nuevo prior ahora es $Beta(11,20)$. Repetimos el mismo procedimiento que antes
+
+```{r}
+ej4.19_df %>% filter(year == 2000) %>% count(binary)
+```
+
+Tenemos 63 peliculas en total de las cuales 29 pasan el test.
+
+
+```{r}
+bayesrules::summarize_beta_binomial(11, 20, 29, 63)
+```
+
+Tambien lo podemos ver graficamente
+
+```{r}
+bayesrules::plot_beta_binomial(11, 20, 29, 63)
+```
+
+### d.
+
+> Jenna also starts her analysis with a Beta(1, 1) prior, but analyzes movies from 1980, 1990, 2000 all on day one.
+
+El prior ahora es $Beta(1,1)$.
+
+```{r}
+ej4.19_df %>% filter(year %in% c(1980,1990,2000)) %>% count(binary)
+```
+
+En total hay 92 peliculas de las cuales 39 pasaron el test.
+
+```{r}
+bayesrules::summarize_beta_binomial(1,1,39,92)
+```
+
+Al final llegamos a la misma posterior que en el (c) pero partiendo de un prior distinto. 
